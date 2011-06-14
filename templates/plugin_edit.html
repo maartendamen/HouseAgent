@@ -1,0 +1,107 @@
+<%inherit file="/master.html"/>
+<%def name="head()">
+<script language='javascript'>
+$(document).ready(function() 
+{
+    $('.error').hide();
+    
+	$("#editplugin_button").button();
+
+	$('#editplugin_button').click(function() {
+        plugin_name = $("input#name");
+        plugin_location = $("#location").val();
+        plugin_id = ${plugin[0][0]};
+        
+        if (plugin_name.val() == "") {
+            $("label#name_error").show();
+            plugin_name.focus();
+            return false;
+        }
+        
+        if (plugin_location != 0) {
+            var dataString = 'name=' + plugin_name.val() + '&location=' + plugin_location + "&id=" + plugin_id;    
+        } else {
+            var dataString = 'name=' + plugin_name.val() + "&id=" + plugin_id;
+        }       
+
+        $.ajax({
+            type: "POST",
+            url: "/plugin_edited", 
+            data: dataString,
+            success: function(data) {
+                        $("#message").html('Plugin succesfully updated!');
+                          $('#message').toggle("slow", function() {
+                          });
+                     }
+        });
+
+	});
+});
+</script>
+</%def>
+<%def name="content()">
+<table cellspacing="0" cellpadding="0" align="left" width="600">
+	<tbody>
+		<tr>
+			<td class="HeadText">Edit plugin</td>
+		</tr>
+		<tr>
+			<td class="body info">
+				<p>This page allows you to edit an existing plugin.</p>
+			</td>
+		</tr>
+		<tr>
+			<td class="body">
+				<form name="room_add">
+					<table class="Panel" cellspacing="0" cellpadding="2" border="0" width="100%">
+						<tbody>
+							<tr>
+								<td class="Head2" colspan="3">Edit plugin</td>
+							</tr>
+							<form>
+							<tr>
+								<td class="Label">
+									<span class="requiredfield">*</span>
+									Name: 
+								</td>
+								<td>
+									<input class="Field250" name="name" id="name" value="${plugin[0][1]}">
+									<label class="error" for="name" id="name_error">This field is required.</label> 
+								</td>
+							</tr>
+                            <tr>
+                                <td class="Label">
+                                    Location 
+                                </td>
+                                <td>
+                                    <select id="location">
+                                        <option value="0">Please select a location</option>
+                                        % for location in locations:
+                                            % if location[0] == plugin[0][2]:
+                                            <option selected value="${location[0]}">${location[1]}</option>
+                                            % else:
+                                            <option value="${location[0]}">${location[1]}</option>
+                                            % endif
+                                        % endfor
+                                    </select>       
+                                </td>
+                            </tr>							
+						</tbody>
+					</table>
+					<div id="message" class="message"></div>
+				</form>
+				<table class="PanelPlain" cellspacing="0" cellpadding="2" border="0" width="100%">
+					<tbody>
+						<tr>
+							<td class="Label">&nbsp;</td>
+							<td height="30" valign="top">
+								<button id="editplugin_button">Edit plugin</button><br><br>
+							</td>
+						</tr>
+					</tbody>
+				</table>
+			</td>
+		</tr>
+	</tbody>
+</table>
+</%def>

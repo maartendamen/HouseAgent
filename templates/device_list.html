@@ -1,0 +1,135 @@
+<%inherit file="/master.html"/>
+
+<%def name="head()">
+        <script language='javascript'>
+
+            $(document).ready(function() 
+            {
+//                var ws = new WebSocket("ws://192.168.1.2:8080/test");
+//                ws.onmessage = function(evt) {
+//                    $('#output').text(evt.data);
+//                    var obj = $.parseJSON(evt.data);
+//					$.each (obj, function (key) {
+					
+//						$('#devices tr').each(function() {
+//						    var deviceid = $(this).find("#address").html();
+//						    if (deviceid == key) {
+//						    	val = $(this).find("td:first");
+//						    	$.each (obj[deviceid][1], function(key) {
+//						    		if (val.html() == key) {
+//						    			stat = val.parent().find("#status");
+//						    			time = val.parent().find("#lastupdate");
+//						    			stat.html(obj[deviceid][1][key]);
+//						    			time.html(obj[deviceid][0]);				    			
+//						    		}
+//						    	});
+//						    }
+//						});				
+//					    console.log (bb);
+//					    console.log (test[bb]);
+//					});
+ //               }
+  //              ws.onopen = function(evt) {
+  //                  $('#conn_status').html('<b>Connected</b>');
+   //                 ws.send('Test data');
+     //           }
+    //            ws.onerror = function(evt) {
+      //              $('#conn_status').html('<b>Error</b>');
+       //         }
+        //        ws.onclose = function(evt) {
+         //           $('#conn_status').html('<b>Closed</b>');
+          //      } 
+
+	            $(".control_type").change(function() {
+	                var id = $(this).attr('id');
+	                var control_type = $(this).val();                
+                    var dataString = 'id=' + id + "&type=" + control_type;
+                    
+                    $.ajax({
+                        type: "POST",
+                        url: "/control_type", 
+                        data: dataString
+                    });                    
+	            });
+	            
+	            $(".history_checkbox").click(function(){
+                    var history = $(this).is(':checked');
+                    var id = $(this).attr('id');
+                    
+			        var dataString = 'id=' + id + "&history=" + history;
+			        
+			        $.ajax({
+			            type: "POST",
+			            url: "/history", 
+			            data: dataString
+			        });                                        
+	            });
+
+            });
+            
+        </script>
+</%def>
+
+<%def name="content()">
+ <!--  Websocket status: <div id="conn_status">Not Connected</div> -->
+<div id="output"></div>
+<table cellspacing="0" cellpadding="0" align="center" width="100%" id="devices">
+	<tbody>
+		<tr>
+			<td class="HeadText">Devices</td>
+		</tr>
+		<tr>
+			<td class="body info">
+				<p>This page lists live information about devices defined in the HouseAgent database..</p>
+			</td>
+		</tr>
+		<tr>
+			<td class="body">
+				<table class="InfoTable" cellspacing="0" cellpadding="0" border="0" width="100%">
+					<tbody>
+						<tr class="HeadTable">
+							<td nowrap="" width="10%">Value</td>
+							<td nowrap="" width="10%">Status</td>
+							<td nowrap="" width="10%">Device Name</td>
+							<td nowrap="" width="10%">Device Address</td>\
+							<td nowrap="" width="10%">Location</td>
+							<td nowrap="" width="10%">Plugin</td>
+							<td nowrap="" width="10%">Last update</td>
+							<td nowrap="" width="5%" align="center">History</td>
+							<td nowrap="" width="5%" align="center">Control type</td>
+						</tr>
+						% for device in result:
+						<tr class="Row">
+							<td>${device[0]}</td>
+							<td id='status'>${device[1]}</td>
+							<td>${device[2]}</td>
+							<td id='address'>${device[5]}</td>
+							<td>${device[6]}</td>
+							<td>${device[4]}</td>
+							<td id='lastupdate'>${device[3]}</td>
+							% if device[10] == True:
+							 <td align=center><input type="checkbox" id=${device[7]} checked class="history_checkbox"></td>
+							% else:
+							 <td align=center><input type="checkbox" id=${device[7]} class="history_checkbox"></td>
+							% endif
+							<td>
+								<select class="control_type" id=${device[7]}>
+								<option value=0>No controltype</option>
+								% for control_type in control_types:
+								    % if device[9] == int(control_type[0]):
+								        <option selected value="${control_type[0]}">${control_type[1]}</option>
+								    % else:
+								        <option value="${control_type[0]}">${control_type[1]}</option>
+								    % endif
+								% endfor
+								</select>    
+							</td>
+						</tr>
+						% endfor
+					</tbody>
+				</table>
+			</td>
+		</tr>
+	</tbody>
+</table>
+</%def>

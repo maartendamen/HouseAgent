@@ -1,0 +1,113 @@
+<%inherit file="/master.html"/>
+<%def name="head()">
+<script language='javascript'>
+$(document).ready(function() 
+{
+	$('#adddevice_button').button();
+	$('#adddevice_button').click(function() {
+		device_name			= $("input#name").val();
+		device_address		= $("input#address").val();
+		
+		plugin				= $("#plugin").val();
+		device_location		= $("#location").val();
+				
+		var dataString = 'name=' + device_name + '&address=' + device_address + '&plugin=' + plugin
+						 + '&location=' + device_location;
+		
+		$.ajax({
+			type: "POST",
+			url: "/device_add_do", 
+			data: dataString,
+			success: function(data) {
+						$("#message").html('<img height="16" width="16" align="left" class="message" src="/images/ok.png">Device succesfully added to the database!');
+						  $('#message').show('slow', function() {
+						  });
+					 }
+		});
+	});
+});
+</script>
+</%def>
+<%def name="content()">
+<table cellspacing="0" cellpadding="0" align="center" width="100%">
+	<tbody>
+		<tr>
+			<td class="HeadText">Add device</td>
+		</tr>
+		<tr>
+			<td class="body info">
+				<p>This page allows you to add a new device to the HouseAgent database.</p>
+			</td>
+		</tr>
+		<tr>
+			<td class="body">
+				<form name="device_add">
+					<table class="Panel" cellspacing="0" cellpadding="2" border="0" width="100%">
+						<tbody>
+							<tr>
+								<td class="Head2" colspan="3">Add new device</td>
+							</tr>
+							<form>
+							<tr>
+								<td class="Label">
+									<span class="requiredfield">*</span>
+									Device name: 
+								</td>
+								<td>
+									<input class="Field250" name="name" id="name">
+								</td>
+							</tr>
+							<tr>
+								<td class="Label">
+									<span class="requiredfield">*</span>
+									Device address: 
+								</td>
+								<td>
+									<input class="Field250" name="address" id="address">
+								</td>
+							</tr>							
+							<tr>
+								<td class="Label">
+									<span class="requiredfield">*</span>
+									Plugin: 
+								</td>
+								<td>
+									<select id="plugin">
+										% for plugin in plugins:
+											<option value="${plugin[2]}">${plugin[0]}</option>
+										% endfor
+									</select>		
+								</td>
+							</tr>
+							<tr>
+								<td class="Label">
+									<span class="requiredfield">*</span>
+									Location: 
+								</td>
+								<td>
+									<select id="location">
+										% for location in locations:
+											<option value="${location[0]}">${location[1]}</option>
+										% endfor
+									</select>		
+								</td>
+							</tr>															
+						</tbody>
+					</table>
+					<div id="message" class="message"></div>
+				</form>
+				<table class="PanelPlain" cellspacing="0" cellpadding="2" border="0" width="100%">
+					<tbody>
+						<tr>
+							<td class="Label">&nbsp;</td>
+							<td height="30" valign="top">
+								<button id="adddevice_button">Add device</button><br><br>
+							</td>
+						</tr>
+					</tbody>
+				</table>
+			</td>
+		</tr>
+	</tbody>
+</table>
+</%def>

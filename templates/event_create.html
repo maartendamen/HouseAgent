@@ -1,0 +1,670 @@
+<%inherit file="/master.html"/>
+
+<%def name="head()">
+<script type="text/javascript" src="/js/jquery.selectboxes.js"></script>
+<link rel="stylesheet" type="text/css" href="/css/jquery.timepicker.css" />
+<script type="text/javascript" src="/js/jquery.jtimepicker.js"></script>
+<script>
+$(document).ready(function() 
+{
+	var stored_triggers = []
+	var stored_actions = []
+	var stored_conditions = []
+	
+	// Initialize UI elements
+	$( "#tabs" ).tabs();
+	$("#add_condition").button();
+	$("#save_event").button();
+	$("#add_action").button();
+	$('#timepicker').jtimepicker({
+	   secView : false,
+	   minInterval : 1
+	});
+	
+    $(".value_change").hide();
+    $(".absolute_time").hide();
+    $(".condition_device").hide();
+    $("#conditions").hide();
+    	
+	$("#add_trigger").click(function() {
+		var trigger_type = $("#triggertype option:selected");
+		if (trigger_type.text() == "Device value change") {
+			addValueChangeTrigger();
+		} else if (trigger_type.text() == "Absolute time") {
+		  addAbsoluteTimeTrigger();
+		}
+	});
+	
+	$("#add_action").click(function() {
+	   var action_type = $("#actiontype option:selected");
+	   if (action_type.text() == "Device action") {
+	       addDeviceAction();
+	   }
+	});
+	
+    function addDeviceAction() {
+        var action_type = $("#actiontype option:selected").val();
+        var device = $("#act_devices option:selected");
+        var control_value = $("#control_values option:selected");
+        var command = $("#control_types option:selected");
+
+        /* Basic on and off */
+        if (command.text() == "Power on" || command.text() == "Power off") { 
+              
+            var action = (command.text() == "Power on") ? "on" : "off";
+	        $('#action_list tr:last').after('<tr class="Row"><td>Turn device "' + device.text() + 
+	        '" (' + control_value.text() + ') ' + action  + '</td></tr>');
+
+	        var action_data = { "action_type" : action_type,
+	                             "parameters"       : { "device" : device.val(),
+	                                                    "control_value" : control_value.val(),
+	                                                    "command": command.val() } };
+	    }
+                                                    
+        /* Thermostat */
+        if (command.text() == "Set thermostat setpoint") {
+            var setpoint = $("#thermostat_setpoint").val();
+            $('#action_list tr:last').after('<tr class="Row"><td>Set thermostat setpoint "' + device.text() + 
+            '" (' + control_value.text() + ') to "' + setpoint  + '"</td></tr>');        
+            
+            var action_data = { "action_type" : action_type,
+                                 "parameters"       : { "device" : device.val(),
+                                                        "control_value" : control_value.val(),
+                                                        "command": setpoint } };                
+        }
+
+        stored_actions.push(action_data);
+    }
+	
+	function replacer(key, value) {
+    	if (typeof value === 'number' && !isFinite(value)) {
+       		return String(value);
+    	}
+    	return value;
+	}
+	
+	function json_encode(value) {
+		var myJSONText = JSON.stringify(value, replacer);
+		return myJSONText;
+	}
+	
+	$("#save_event").click(function() {
+	
+	   var triggertype = $("#triggertype option:selected");
+	   
+	   if (triggertype.text() == "Absolute time") {
+	   
+			var cron = "";
+			
+			cron += $('.mincombo').val();
+			cron += " ";
+			cron += $('.hourcombo').val();
+			cron += " * * ";
+			
+			var first = true;
+			
+			$(".absolute_time_day").each(function(){
+			    if ($(this).attr('checked')) {
+			        if (first) {
+			            first = false;
+			            cron += $(this).attr('id');
+			        } else {
+			           cron += "," + $(this).attr('id');
+			        }
+			    }
+			});	       
+	   
+			var trigger_data = { "trigger_type" : triggertype.val(),
+			                     "conditions" : $("input[name='conditions_radio']:checked").val(),
+			                     "parameters"       : { "cron" : cron } 
+			                   };	       
+	   } else if (triggertype.text() == "Device value change") {
+	       
+	       var current_value_id = $("#value_change_values option:selected").val();
+	       var condition = $("#value_change_conditions option:selected").val();
+	       var condition_value = $("#value_change_value").val();
+	   
+	       var trigger_data = { "trigger_type" : triggertype.val(),
+	                            "conditions" : $("input[name='conditions_radio']:checked").val(),
+	                            "parameters"       : { "current_value_id" : current_value_id,
+	                                                   "condition" : condition,
+	                                                   "condition_value" : condition_value}
+	                          };
+        }
+	
+		var event_enabled = $("input[name='event_enabled']:checked").val();
+		var event_name = $("#event_name").val();
+		var event_data = { "name" : event_name,
+						 "enabled" : event_enabled,
+						 "conditions" : stored_conditions,
+						 "actions" : stored_actions, 
+						 "trigger" : trigger_data };
+	
+		$.ajax({
+		  type: 'POST',
+		  url: '/event_save',
+		  data: json_encode(event_data)
+		});
+	});
+	
+	$("#devices_trigger").change(function() {
+		var selected = $("#devices_trigger option:selected");
+ 		
+  		// Remove all values first
+  		$("#device_values").removeOption(/./);
+ 		
+  		// Add options using an AJAX call
+  		$("#device_values").ajaxAddOption("/event_value_by_id", {"deviceid" : selected.val()}, false);
+  		$("#device_values").addOption("default", "Please select a value...");  		
+	});
+	
+	$("#triggertype").change(function() {
+	   var selected = $("#triggertype option:selected");
+	   
+	   if (selected.text() == "Device value change") {
+           $(".value_change").show();
+           $(".absolute_time").hide();      
+	   } else if (selected.text() == "Absolute time") {
+	       $(".value_change").hide();
+	       $(".absolute_time").show();
+	   } else {
+           $(".absolute_time").hide();      
+           $(".value_change").hide();
+	   }
+	});
+	
+	$("#actiontype").change(function() {
+	   var selected = $("#actiontype option:selected");
+	   
+	   if (selected.text() == "Device action") {
+	       $('#action_devices').show();         
+	   }
+	});
+	
+	$("#act_devices").change(function() {
+	   var selected = $("#act_devices option:selected");
+	   
+	   $("#dev_actions").show();
+       $("#control_values").removeOption(/./);
+       $("#control_values").ajaxAddOption("/event_control_values_by_id", {"deviceid" : selected.val()}, false, function() {
+        if ($('#control_values option').length == 1) {
+           var selected = $("#control_values option:selected");
+        
+	       $("#control_types_placeholder").show();
+	       $("#control_types").removeOption(/./);
+	       $("#control_types").ajaxAddOption("/event_control_types_by_id", {"valueid" : selected.val()}, false, function() {
+	           if ($("#control_types option:selected").text() ==  "Set thermostat setpoint") 
+                    $('#control_types_thermostat').show();
+               else
+                    $('#control_types_thermostat').hide();
+	       });                    
+        }       
+       });
+                   	
+	});
+	
+	$("#control_values").change(function() {
+	   var selected = $("#control_values option:selected");
+	   
+	   $("#control_types_placeholder").show();
+       $("#control_types").removeOption(/./);
+       $("#control_types").ajaxAddOption("/event_control_types_by_id", {"valueid" : selected.val()}, false);	   
+	});
+	
+	$("#device_values").change(function() {
+		var selected = $("#device_values option:selected");
+		getCurrentValue(selected.val());
+	});
+
+	function getCurrentValue(valueid) {
+		$.ajax({
+		   type: "GET",
+		   url: "event_getvalue",
+		   data: "valueid=" + valueid,
+		   success: function(data){
+		     $("#current_value").html(data);
+		   }
+		 });
+	}
+	
+	/* Device value change trigger specific */
+	
+    $("#value_change_devices").change(function() {
+        var selected = $("#value_change_devices option:selected");
+        
+        // Remove all values first
+        $("#value_change_values").removeOption(/./);
+        
+        // Add options using an AJAX call
+        $("#value_change_values").ajaxAddOption("/event_value_by_id", {"deviceid" : selected.val()}, false);
+        $("#value_change_values").addOption("default", "Please select a value...");       
+    });	
+
+    $("#value_change_values").change(function() {
+        var selected = $("#value_change_values option:selected");
+        
+        $.ajax({
+           type: "GET",
+           url: "event_getvalue",
+           data: "valueid=" + selected.val(),
+           success: function(data){ 
+             $("#value_change_current_value").html(data);
+           }
+         });
+    });	
+	
+	/* Conditions */
+	$("input[name='conditions_radio']").change(function() {
+	
+	   if ($("input[name='conditions_radio']:checked").val() == 'true')
+	       $("#conditions").show();
+	   else if ($("input[name='conditions_radio']:checked").val() == 'false')
+	       $("#conditions").hide();
+	       $(".condition_device").hide();
+	       
+	});
+	
+	$("#condition_type").change(function(){
+
+       var selected = $("#condition_type option:selected");
+	
+	   if (selected.text() == "Device value")
+	       $(".condition_device").show();
+	});
+	
+    $("#condition_device_devices").change(function() {
+        var selected = $("#condition_device_devices option:selected");
+        
+        // Remove all values first
+        $("#condition_device_values").removeOption(/./);
+        
+        // Add options using an AJAX call
+        $("#condition_device_values").ajaxAddOption("/event_value_by_id", {"deviceid" : selected.val()}, false);
+        $("#condition_device_values").addOption("default", "Please select a value...");       
+    });
+    
+    $("#condition_device_values").change(function() {
+        var selected = $("#condition_device_values option:selected");
+        
+        $.ajax({
+           type: "GET",
+           url: "event_getvalue",
+           data: "valueid=" + selected.val(),
+           success: function(data){
+             $("#condition_device_current_value").html(data);
+           }
+         });
+    });
+    
+    $("#add_condition").click(function() {
+        var condition_type = $("#condition_type option:selected");
+        
+        if (condition_type.text() == "Device value") {
+	        var device_value = $("#condition_device_values option:selected");
+	        var condition_type = $("#condition_type option:selected");
+	        var device = $("#condition_device_devices option:selected");
+	        var value = $("#condition_device_value").val();
+	        var condition = $("#condition_device_conditions option:selected");
+	        
+	        switch(condition.val())
+	        {
+	            case "eq":
+	              condition2 = "is equal to";
+	              break;
+	            case "ne":
+	              condition2 = "is not equal to";
+	              break;
+	            case "lt":
+	              condition2 = "is less then";
+	              break;
+	            case "gt":
+	              condition2 = "is greater then";
+	              break;
+	            default:
+	              condition2 = "error";
+	        }
+	        
+	        $('#condition_list tr:last').after('<tr class="Row"><td>Only triggered when value condition "' + device_value.text() + 
+	        '" on device "' + device.text() + '" ' + condition2 + ' "' + value + '"</td></tr>');
+	        
+	        /* Store object in array */
+	        var condition_data = { "condition_type" : condition_type.val(),
+	                             "parameters"       : { "condition" : condition.val(),
+	                                                    "condition_value" : value,
+	                                                    "current_values_id": device_value.val()  } };
+	                                                    
+	        stored_conditions.push(condition_data);
+	     }         	
+     });
+});
+</script>
+
+</%def>
+<%def name="content()">
+<table cellspacing="0" cellpadding="0" align="center" width="100%" id="event_create">
+	<tbody>
+		<tr>
+			<td class="HeadText">Create event</td>
+		</tr>
+		<tr>
+			<td class="body info">
+				<p>This page allows you to create an event, an event usually executes certain actions based on certain triggers.</p>
+			</td>
+		</tr>
+		<tr>
+			<td>
+				<button id="save_event">Save event</button><br><br>
+				<div id="tabs">
+					<ul>
+						<li><a href="#general">Event general</a></li>
+						<li><a href="#triggers">Event triggers</a></li>
+						<li><a href="#actions">Event actions</a></li>
+					</ul>
+					<div id="general">
+						<form id="event_general">
+							<table class="Panel" cellspacing="0" cellpadding="2" border="0" width="100%">
+								<tbody>
+									<tr>
+										<td class="Head2" colspan="3">General event information</td>
+									</tr>
+									<tr>
+										<td class="Label">
+										Event name:
+										</td>
+										<td>
+											<input class="Field250" name="event_name" id="event_name">
+										</td>
+									</tr>
+									<tr>
+										<td class="Label">
+										Event enabled:
+										</td>
+										<td>
+											<input type="radio" name="event_enabled" value="yes">Yes
+											<input type="radio" name="event_enabled" value="no">No
+										</td>
+									</tr>
+								</tbody>
+							</table>
+						</form>					
+					</div>
+					<div id="triggers">
+						<form name="trigger_add">
+							<table class="Panel" cellspacing="0" cellpadding="2" border="0" width="100%">
+								<tbody>
+									<tr>
+										<td class="Head2" colspan="3">Add new trigger</td>
+									</tr>
+									<form>
+									<tr>
+										<td class="Label">
+										Select trigger type: 
+										</td>
+										<td>
+											<select id="triggertype" name="triggertype">
+												<option value="default">Please select a trigger type...</option>
+												% for trigger_type in trigger_types:
+												<option value="${trigger_type[0]}">${trigger_type[1]}</option>
+												% endfor
+											</select>
+										</td>
+									</tr>
+									
+									<!-- Device value change trigger type -->
+									
+									<tr class="value_change">
+										<td class="Label">
+											Select a device:
+										</td>
+										<td>
+											<select id="value_change_devices">
+												<option value="default">Please select a device..</option>
+												% for device in devices:
+												<option value="${device[0]}">${device[1]}</option>
+												% endfor
+											</select>
+										</td>
+									</tr>
+									<tr class="value_change">
+										<td class="Label">
+											Select a value:
+										</td>
+										<td>
+											<select id="value_change_values">
+												<option value="default">Please select a device first..</option>
+											</select>
+										</td>
+									</tr>
+									<tr class="value_change">
+										<td class="Label">
+											Select a condition
+										</td>
+										<td>
+											<select id="value_change_conditions">
+												<option value="default">Please select a condition</option>
+												<option value="eq">Is Equal To (=)</option>
+												<option value="ne">Is Not Equal To (!=)</option>
+												<option value="gt">Greater Then (>)</option>
+												<option value="lt">Less Then (<)</option>
+											</select>
+										</td>
+									</tr>
+                                    <tr class="value_change">
+                                        <td class="Label">
+                                            Value
+                                        </td>
+                                        <td>
+                                            <input class="Field250" id="value_change_value">&nbsp;&nbsp; <i>Current value: <span id="value_change_current_value"></span></i>
+                                        </td>
+                                    </tr>
+                                    
+                                    <!-- Absolute time trigger type -->
+                                    
+                                    <tr class="absolute_time">
+                                        <td class="Label">
+                                            Select days
+                                        </td>
+                                        <td>
+                                            <input type="checkbox" id='1' checked class="absolute_time_day" value="Mon">Mon</input>
+                                            <input type="checkbox" id='2' checked class="absolute_time_day" value="Tue">Tue</input>
+                                            <input type="checkbox" id='3' checked class="absolute_time_day" value="Wed">Wed</input>
+                                            <input type="checkbox" id='4' checked class="absolute_time_day" value="Thu">Thu</input>
+                                            <input type="checkbox" id='5' checked class="absolute_time_day" value="Fri">Fri</input>
+                                            <input type="checkbox" id='6' checked class="absolute_time_day" value="Sat">Sat</input>
+                                            <input type="checkbox" id='0' checked class="absolute_time_day" value="Sun">Sun</input>
+                                        </td>
+                                    </tr>   
+                                    <tr class="absolute_time">
+                                        <td class="Label">
+                                            Select time
+                                        </td>
+                                        <td>
+                                            <div id="timepicker"></div>				                                                
+                                        </td>
+                                    </tr>
+                                    <!-- Conditions -->
+                                    <tr>
+                                        <td class="Label">
+                                            Apply conditions
+                                        </td>
+                                        <td>
+                                            <input type="radio" name="conditions_radio" value="true">Yes
+                                            <input type="radio" name="conditions_radio" value="false" checked>No
+                                        </td>
+                                    </tr> 
+                                    <tr id="conditions">
+                                        <td class="Label">
+                                        Select condition type: 
+                                        </td>
+                                        <td>
+                                            <select id="condition_type">
+                                                <option value="default">Please select a condition type...</option>
+                                                % for condition_type in condition_types:
+                                                <option value="${condition_type[0]}">${condition_type[1]}</option>
+                                                % endfor
+                                            </select>
+                                        </td>
+                                    </tr>    
+
+                                    <tr class="condition_device">
+                                        <td class="Label">
+                                            Select a device:
+                                        </td>
+                                        <td>
+                                            <select id="condition_device_devices">
+                                                <option value="default">Please select a device..</option>
+                                                % for device in devices:
+                                                <option value="${device[0]}">${device[1]}</option>
+                                                % endfor
+                                            </select>
+                                        </td>
+                                    </tr>
+                                    <tr class="condition_device">
+                                        <td class="Label">
+                                            Select a value:
+                                        </td>
+                                        <td>
+                                            <select id="condition_device_values">
+                                                <option value="default">Please select a device first..</option>
+                                            </select>
+                                        </td>
+                                    </tr>
+                                    <tr class="condition_device">
+                                        <td class="Label">
+                                            Select a condition
+                                        </td>
+                                        <td>
+                                            <select id="condition_device_conditions">
+                                                <option value="default">Please select a condition</option>
+                                                <option value="eq">Is Equal To (=)</option>
+                                                <option value="ne">Is Not Equal To (!=)</option>
+                                                <option value="gt">Greater Then (>)</option>
+                                                <option value="lt">Less Then (<)</option>
+                                            </select>
+                                        </td>
+                                    </tr>
+                                    <tr class="condition_device">
+                                        <td class="Label">
+                                            Value
+                                        </td>
+                                        <td>
+                                            <input class="Field250" id="condition_device_value">&nbsp;&nbsp; <i>Current value: <span id="condition_device_current_value"></span></i>
+                                        </td>
+                                    </tr>
+                                                                                                                           								
+								</tbody>
+							</table>
+						</form>
+						<table class="PanelPlain" cellspacing="0" cellpadding="0" border="0" width="100%">
+							<tbody>
+								<tr>
+									<td class="Label">&nbsp;</td>
+									<td height="30" valign="top">
+										<button id="add_condition">Add condition</button>
+									</td>
+								</tr>
+							</tbody>
+						</table>
+						<h3>Condition list:</h3>
+						<table class="InfoTable" id="condition_list" cellspacing="0" cellpadding="0" border="0" width="33%">
+							<tbody>
+								<tr class="HeadTable">
+									<td nowrap="" width="80%">Condition</td>
+									<td nowrap="" width="20%">Actions</td>
+								</tr>
+								<tr class="Row">
+								</tr>
+							</tbody>
+						</table>												
+					</div>
+					<div id="actions">
+                        <form name="actions_add">
+                            <table class="Panel" cellspacing="0" cellpadding="2" border="0" width="100%">
+                                <tbody>
+                                    <tr>
+                                        <td class="Head2" colspan="3">Add new action</td>
+                                    </tr>
+                                    <form>
+                                    <tr>
+                                        <td class="Label">
+                                        Select action type: 
+                                        </td>
+                                        <td>
+                                            <select id="actiontype" name="actiontype">
+                                                <option value="default">Please select an action type...</option>
+                                                % for action_type in action_types:
+                                                <option value="${action_type[0]}">${action_type[1]}</option>
+                                                % endfor
+                                            </select>
+                                        </td>
+                                    </tr>
+                                    <tr id="action_devices" style="display: none;">
+                                        <td class="Label">
+                                            Select a device:
+                                        </td>
+                                        <td>
+                                            <select id="act_devices">
+                                                <option value="default">Please select a device..</option>
+                                                % for device in devices:
+                                                <option value="${device[0]}">${device[1]}</option>
+                                                % endfor
+                                            </select>
+                                        </td>
+                                    </tr>
+                                    <tr id="dev_actions" style="display: none;">
+                                        <td class="Label">
+                                            Select a value to control:
+                                        </td>
+                                        <td>
+                                            <select id="control_values">
+                                            </select>
+                                        </td>
+                                    </tr>
+                                    <tr id="control_types_placeholder" style="display: none;">
+                                        <td class="Label">
+                                            Select an action:
+                                        </td>
+                                        <td>
+                                            <select id="control_types">
+                                            </select>
+                                        </td>
+                                    </tr>
+                                    <tr id="control_types_thermostat" style="display: none;">
+                                        <td class="Label">
+                                            Setpoint:
+                                        </td>
+                                        <td>
+                                            <input class="Field250" id="thermostat_setpoint"></input>                              
+                                        </td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </form>
+                        <table class="PanelPlain" cellspacing="0" cellpadding="0" border="0" width="100%">
+                            <tbody>
+                                <tr>
+                                    <td class="Label">&nbsp;</td>
+                                    <td height="30" valign="top">
+                                        <button id="add_action">Add action</button>
+                                    </td>
+                                </tr>
+                            </tbody>
+                        </table>
+                        <h3>Action list:</h3>
+                        <table class="InfoTable" id="action_list" cellspacing="0" cellpadding="0" border="0" width="33%">
+                            <tbody>
+                                <tr class="HeadTable">
+                                    <td nowrap="" width="80%">Action</td>
+                                    <td nowrap="" width="20%">Options</td>
+                                </tr>
+                                <tr class="Row">
+                                </tr>
+                            </tbody>
+                        </table>                                                
+					</div>
+				</div>
+			</td>
+		</tr>
+	</tbody>
+</table>
+</%def>

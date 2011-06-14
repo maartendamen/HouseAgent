@@ -1,0 +1,111 @@
+<%inherit file="/master.html"/>
+<%def name="head()">
+<script language='javascript'>
+$(document).ready(function() 
+{
+    $('.error').hide();
+	$("#register_button").button();
+
+	$('#register_button').click(function() {
+		plugin_name 		= $("input#name");
+		location_id            = $("#location");
+
+        if (plugin_name.val() == "") {
+            $("label#name_error").show();
+            plugin_name.focus();
+            return false;
+        }
+        
+        if (location_id.val() == 0) {
+            $("label#location_error").show();
+            return false;
+        }
+				
+		var dataString = 'name=' + plugin_name.val() + '&location=' + location_id.val();
+		
+		$.ajax({
+			type: "POST",
+			url: "/plugin_add_do", 
+			data: dataString,
+			success: function(data) {
+						$("#unique_code").html(data);
+					 }
+		});
+	});
+});
+</script>
+</%def>
+<%def name="content()">
+<table cellspacing="0" cellpadding="0" align="center" width="100%">
+	<tbody>
+		<tr>
+			<td class="HeadText">Register plugin</td>
+		</tr>
+		<tr>
+			<td class="body info">
+				<p>This page allows you to register a new HouseAgent plugin in the database.<br>
+				Once the plugin has been registered an unique registration code will be returned.
+				</p>
+			</td>
+		</tr>
+		<tr>
+			<td class="body">
+				<form name="device_add">
+					<table class="Panel" cellspacing="0" cellpadding="2" border="0" width="100%">
+						<tbody>
+							<tr>
+								<td class="Head2" colspan="3">Register new plugin</td>
+							</tr>
+							<form>
+							<tr>
+								<td class="Label">
+									<span class="requiredfield">*</span>
+									Plugin name: 
+								</td>
+								<td>
+									<input class="Field250" name="name" id="name">
+									<label class="error" for="name" id="name_error">This field is required.</label> 
+								</td>
+							</tr>
+                            <tr>
+                                <td class="Label">
+                                    <span class="requiredfield">*</span>
+                                    Location:
+                                </td>
+                                <td>
+                                    <select id="location">
+                                        <option selected value="0">Please select a location</option>
+                                        % for location in locations:
+                                            <option value="${location[0]}">${location[1]}</option>
+                                        % endfor
+                                    </select>
+                                    <label class="error" for="name" id="location_error">This field is required.</label> 
+                                </td>
+                            </tr>							
+							<tr>
+								<td id="result">
+									Unique registration code: 
+								</td>
+								<td id="unique_code">
+									
+								</td>
+							</tr>
+						</tbody>
+					</table>
+				</form>
+				<!--  Save button -->
+				<table class="PanelPlain" cellspacing="0" cellpadding="2" border="0" width="100%">
+					<tbody>
+						<tr>
+							<td class="Label">&nbsp;</td>
+							<td height="30" valign="top">
+								<button id="register_button">Register plugin</button><br><br>
+							</td>
+						</tr>
+					</tbody>
+				</table>
+			</td>
+		</tr>
+	</tbody>
+</table>
+</%def>

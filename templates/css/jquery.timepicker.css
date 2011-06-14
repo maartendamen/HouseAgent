@@ -1,0 +1,91 @@
+.combo {
+    float:left;
+}
+
+.clock {
+    display:block;
+    cursor:pointer;
+    float:left;
+    margin-left:2px;
+}
+
+#sliderWrap {
+    position:absolute;
+    z-index:100;
+    top:135px;
+    left:342px;
+    background:#fff;
+    border:1px solid #ccc;
+    display:none;
+    -moz-border-radius: 6px;
+    -webkit-border-radius: 6px;
+    _padding-top:10px; /* IE */
+}
+
+.hourcombo {
+    width: 50px;
+}
+
+.mincombo { 
+    width: 50px;
+}
+
+#sliderWrap label {
+    display:block;
+    font-size:11px;
+    font-family:sans-serif;
+}
+
+#sliderWrap p {
+    font-size:70%;
+}
+
+.auto {
+    width:250px;
+    padding-right:10px;
+}
+
+.auto div {
+    width:100%;
+}
+
+.auto label {
+    float:left;
+    text-align:right;
+    width:30px;
+}
+
+.auto p {
+    margin-left:40px;
+}
+
+.auto p .ui-slider-range {
+    _font-size: .5em; /* IE */
+}
+
+.vertical {
+    width:100px;
+    padding-left:5px;
+    padding-bottom:10px;
+}
+
+.vertical div {
+    width:33%;
+    float:left;
+    height:100%;
+}
+
+.vertical label {
+    text-align:center;
+    padding-bottom:8px;
+}
+
+.vertical p {
+    height:130px;
+    margin:0 auto;
+    _margin-left:7px; /* IE */
+}
+
+.vertical p .ui-slider-handle {
+    _margin-bottom: -.4em; /* IE */
+}

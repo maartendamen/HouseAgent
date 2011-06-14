@@ -1,0 +1,246 @@
+#MenuHeader {
+	font-size: 10px;
+	font-weight: bold;
+	margin: 0;
+	padding: 0;
+	height: 28px;
+}
+
+#MenuHeader ul {
+	list-style: none;
+	padding: 0;
+	margin: 0;
+	line-height: 1;
+}
+
+#MenuHeader li {
+	float: left;
+	padding: 0;
+	margin: 0;
+	list-style: none;
+}
+
+#MenuHeader a {
+	text-decoration: none;
+	display: block;
+}
+
+#MenuHeader ul ul {
+	border: solid 1px #BCBCBC;
+	display: none;
+	z-index: 250;
+	position: absolute;
+	clear: both;
+}
+
+#MenuHeader li.over ul {
+	display: block;
+}
+
+#MenuHeader li li {
+	clear: left;
+}
+
+#MenuHeader li.dropselected ul {
+	border: 1px solid #05386d;
+}
+
+#MenuHeader li.over a{
+	z-index: 400;
+}
+
+#MenuHeader li li a
+{
+	background-color: #FFFFFF;
+	color: black;
+	margin: 0;
+	font-weight:normal;
+	font-size: 11px;
+	border:0;
+	display: block;
+	padding: 5px 8px 5px 27px;
+	text-decoration: none;
+	background-repeat: no-repeat;
+	background-position: 5px 7px;
+}
+
+#MenuHeader li li a strong
+{
+	text-decoration: underline;
+	font-size: 12px;
+}
+
+#MenuHeader li li b, #MenuHeader li li span {
+	display: block;
+	line-height: 1.2;
+}
+
+#MenuHeader li li span {
+	padding: 5px 0px 5px 0px;
+}
+
+#MenuHeader li li b {
+	text-decoration: underline;
+	font-size: 12px;
+}
+
+#MenuHeader li.dropselected li a {
+	background-color: #05386D;
+	color: white;
+}
+
+#MenuHeader li.dropselected li:last-child a, #MenuHeader li.dropselected li.last a {
+	border-bottom: 0;
+}
+
+#MenuHeader li li a:hover
+{
+	background-color: #f5f5f5;
+	color: #005fa3;
+}
+
+#MenuHeader li.dropselected li a:hover {
+	background-color: #DFEDFC;
+	color: black;
+}
+
+#MenuHeader li li a.menu_mnuArticles
+{
+	width: 200px;
+}
+
+#MenuHeader li li a.menu_mnuCategories
+{
+	width: 200px;
+}
+
+#MenuHeader li li a.menu_mnuGroups
+{
+	width: 200px;
+}
+
+#MenuHeader li li a.menu_mnuUsers
+{
+	width: 200px;
+}
+
+#MenuHeader li li a.menu_mnuComments
+{
+	width: 200px;
+}
+
+#MenuHeader li li a.menu_mnuStats
+{
+	width: 200px;
+}
+
+.menuBar
+{
+	border-bottom-width: 7px;
+	border-bottom-style: solid;
+	border-bottom-color: #05386d;
+}
+
+#MenuHeader li li a.menu_list_button
+{
+	width: 120px;
+}
+
+#MenuHeader li li a.menu_subscriber_button
+{
+	width: 147px;
+}
+
+#MenuHeader li li a.menu_newsletter_button
+{
+	width: 145px;
+}
+
+#MenuHeader li li a.menu_template_button
+{
+	width: 145px;
+}
+
+#MenuHeader li li a.menu_autoresponder_button
+{
+	width: 140px;
+}
+
+#MenuHeader li li a.menu_statistics_button
+{
+	width: 125px;
+}
+
+
+/** CSS FOR HEADER MENU TABLE **/
+
+#MenuHeader td {
+	padding: 0;
+	vertical-align: top;
+	text-decoration: none;
+	cursor: pointer;
+}
+
+
+#MenuHeader table {
+	margin-right: 2px;
+}
+
+#MenuHeader td img {
+	border: 0;
+	cursor: pointer;
+}
+
+#MenuHeader td.dropdown-tab-icon,
+
+#MenuHeader td.dropdown-tab-arrow,
+
+#MenuHeader td.dropdown-tab-label {
+	padding-top: 8px;
+	/*background: url(../../images/mnu_middle.gif) repeat-x top left; */
+	font-family: Tahoma;
+	font-weight: normal;
+	text-decoration: none;
+	font-size: 12px;
+	color: #000;
+}
+
+#MenuHeader td.dropdown-tab-label span  {
+	text-decoration: none;
+}
+
+#MenuHeader td.dropdown-tab-icon {
+	padding-right: 6px;
+}
+
+
+#MenuHeader td.dropdown-tab-arrow {
+	padding-top: 15px;
+	padding-left: 6px;
+}
+
+#MenuHeader li.dropselected td.dropdown-tab-icon,
+
+#MenuHeader li.dropselected td.dropdown-tab-arrow,
+
+#MenuHeader li.dropselected td.dropdown-tab-label {
+	background-image: url(/images/mnu_on_middle.gif); 
+	color: #FFF;
+}
+
+#MenuHeader li.dropdown-on ul {
+	border-color: #05386D;
+}
+
+#MenuHeader li.dropdown-on li a {
+	text-decoration: none;
+	background-color: #05386D;
+	color: #FFF;
+}
+
+#MenuHeader li.dropdown-on li a:hover {
+	background-color: #DFEDFC;
+	color: #000;
+}
+
+/** End of Header Menubar **/

@@ -1,0 +1,43 @@
+<%inherit file="/master.html"/>
+
+<%def name="head()">
+</%def>
+
+<%def name="content()">
+<table cellspacing="0" cellpadding="0" align="center" width="100%" id="devices">
+	<tbody>
+		<tr>
+			<td class="HeadText">Plugin status</td>
+		</tr>
+		<tr>
+			<td class="body info">
+				<p>This page lists the status of all the plugins in the HouseAgent network.</p>
+			</td>
+		</tr>
+		<tr>
+			<td class="body">
+				<table class="InfoTable" cellspacing="0" cellpadding="0" border="0" width="50%">
+					<tbody>
+						<tr class="HeadTable">
+							<td nowrap="" width="33%">Name</td>
+							<td nowrap="" width="33%">Authcode</td>
+							<td nowrap="" width="33%">Status</td>
+						</tr>
+						% for plugin in status_result:
+						<tr class="Row">
+							<td>${plugin[0]}</td>
+							<td>${plugin[1]}</td>
+							% if plugin[3] == True:
+							<td><font color="green"><b>Online</b></font></td>
+							% else:
+							<td><font color="red"><b>Offline</b></font></td>
+							% endif
+						</tr>
+						% endfor
+					</tbody>
+				</table>
+			</td>
+		</tr>
+	</tbody>
+</table>
+</%def>

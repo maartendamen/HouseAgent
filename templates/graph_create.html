@@ -1,0 +1,116 @@
+<%inherit file="/master.html"/>
+
+<%def name="head()">
+<script type="text/javascript" src="/js/jquery.selectboxes.js"></script>
+<script src="/js/jquery.flot.js" type="text/javascript"></script>
+<!--[if IE]>
+	<script language="javascript" type="text/javascript" src="/js/excanvas.pack.js"></script>
+<![endif]-->
+<script>
+$(document).ready(function() 
+{
+	$('#create_button').button();
+
+	function trim(value) {
+	  value = value.replace(/^\s+/,'');
+	  value = value.replace(/\s+$/,'');
+	  return value;
+	}
+
+	function ondata(d)
+	{
+		var value_name = $("#historic_values option:selected").text().split(' - ')[1];
+		
+		switch(value_name)
+		{
+			case "Temperature":
+			  color = '#ff0000';
+			  break;
+			case "Humidity":
+		      color = '#157DEC';
+		      break;
+		    case "Light": case "Lux":
+		      color = '#FFF380';
+		      break;
+			default:
+			  color = "black";
+		}
+		
+		var data1 = [ { label: value_name, 
+								data: d,
+								color: color} ];
+		
+		var options = { xaxis: { mode: "time" } };
+		
+		$.plot($("#graph"), data1, options );
+	}
+	
+	$('#create_button').click(function() {
+		history_id = $("#historic_values").val();
+		period = $("#period").val();
+	
+	    $.ajax({
+	        url: '/graphdata',
+	        method: 'GET',
+	        dataType: 'json',
+	        data: 'type=gauge&history_id=' + history_id + '&period=' + period,
+	        success: ondata
+	    });
+	});	
+});
+</script>
+
+</%def>
+<%def name="content()">
+<table cellspacing="0" cellpadding="0" align="center" width="100%" id="event_create">
+	<tbody>
+		<tr>
+			<td class="HeadText">Create graph</td>
+		</tr>
+		<tr>
+			<td class="body info">
+				<p>This page allows you to create a graph, based on historic data stored in the database.</p>
+			</td>
+		</tr>
+		<tr>
+			<td class="body info">
+				<div id="graphzone">
+					Please select a value for graph:<br>
+					<select id="historic_values">
+						% for historic_value in result:
+							<option value="${historic_value[0]}">${historic_value[2]} - ${historic_value[1]}</option>
+						% endfor
+					</select>
+					<br>Please select a reporting period for the graph:<br>
+					<select id="period">
+						<option value="-1h">Last hour</option>
+						<option value="-4h">Last 2 hours</option>
+						<option value="-4h">Last 4 hours</option>
+						<option value="-8h">Last 8 hours</option>
+						<option value="-12h">Last 12 hours</option>
+						<option value="-1d">Last day</option>
+						<option value="-3d">Last 3 days</option>
+						<option value="-7d">Last 7 days</option>
+						<option value="-14d">Last 14 days</option>
+						<option value="-1m">Last month</option>
+						<option value="-3m">Last 3 months</option>
+						<option value="-6m">Last 6 months</option>
+						<option value="-1y">Last year</option>
+						<option value="-2y">Last 2 years</option>	
+						<option value="-3y">Last 3 years</option>	
+						<option value="-5y">Last 5 years</option>
+						<option value="-5y">Last 10 years</option>			
+					</select>				
+					<br><br>
+					<button id="create_button">Create graph</button><br><br>
+				</div>
+				<div id="graphzone2">
+					<p id="graphtext" style="display: none;">lalalala</p>
+					<div id="graph" style="width:600px;height:300px">
+					</div>
+				</div>
+			</td>
+		</tr>
+	</tbody>
+</table>
+</%def>

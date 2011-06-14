@@ -1,0 +1,123 @@
+<%
+import os          
+from xml.dom import minidom 
+
+main_items = []
+    
+def parse_config(config):
+    xmldoc = minidom.parse(config)
+    items = xmldoc.getElementsByTagName('item')
+       
+    for item in items:
+        name = item.getAttribute('name')
+        url  = item.getAttribute('url')
+        image = item.getAttribute('image')
+    
+        subitems = item.getElementsByTagName('subitem')   
+        sub_items  = []
+        
+        for subitem in subitems:
+            sub_name = subitem.getElementsByTagName('name')[0].firstChild.data
+            sub_url = subitem.getElementsByTagName('url')[0].firstChild.data
+            sub_description = subitem.getElementsByTagName('description')[0].firstChild.data
+            
+            sub_item = [sub_name, sub_url, sub_description]
+            
+            sub_items.append(sub_item)        
+    
+        main_item = [name, url, sub_items, image]       
+        main_items.append(main_item)
+
+parse_config("templates/menu.xml")
+for filename in os.listdir("templates/plugins/"):
+    if not os.path.isfile(filename):
+        if (os.path.exists(os.path.join("templates/plugins", filename, "menu.xml"))):
+            parse_config(os.path.join("templates/plugins", filename, "menu.xml"))
+%>
+<html>
+	<head>
+		<title>HouseAgent 0.1 Public Beta</title>
+		<link type="text/css" href="/css/houseagent.css" rel="stylesheet">
+		<link type="text/css" href="/css/tabmenu.css" rel="stylesheet">
+		<link type="text/css" href="/css/jquery-ui-1.8.6.custom.css" rel="stylesheet">
+		
+		<script type="text/javascript" src="/js/jquery.js"></script>
+		<script type="text/javascript" src="/js/jquery-ui-1.8.6.custom.js"></script>
+
+		<script language='javascript'>
+		$(document).ready(function() 
+		{
+		    var active_menu = null;
+		
+			$('#MenuHeader ul li.dropdown > a').click(function(e)
+			{			
+			    if (active_menu == null) {
+			         $(this).parent().children(".submenu").show();
+			         active_menu = $(this).attr("pathname");
+			    } else if (active_menu == $(this).attr("pathname")) {
+			         $(this).parent().children(".submenu").hide();
+			         active_menu = null;
+			    }
+				return false;
+			});
+		});
+		</script>
+		${self.head()}
+	</head>
+	<body>
+	<div id="OutsidePadding" style="min-width: 930px;">
+		<div class="Header">
+			<div class="Logo">
+				<img id="Logo" border="0" alt="HouseAgent 0.1 Public Beta" src="/images/logo.png">
+			</div>
+			<div class="Header_Bottom" />
+		</div>
+		<div class="Menu">
+			<div style="height: 0px;">&nbsp;</div>
+			<div>
+				<div id="MenuHeader">
+					<ul>
+						% for item in main_items:
+						<li class="dropdown">
+							<a href="${item[1]}">
+								<table cellspacing="0">
+									<tbody>
+										<tr>
+											<td class="dropdown-tab-left">
+												<img width="12" height="28" src="/images/mnu_left.gif">
+											</td>
+											<td style="background-image: url(/images/mnu_middle.gif);" class="dropdown-tab-icon">
+												<img height=16 width=16 src="${item[3]}">
+											</td>
+											<td style="background-image: url(/images/mnu_middle.gif);" class="dropdown-tab-label">
+												<span>${item[0]}</span>
+											</td>
+											<td style="background-image: url(/images/mnu_middle.gif);" class="dropdown-tab-arrow">
+												<img width="8" height="4" src="/images/mnu_arrow.gif">
+											</td>
+											<td class="dropdown-tab-right">
+												<img width="12" height="28" src="/images/mnu_right.gif">
+											</td>
+										</tr>
+									</tbody>
+								</table>
+							</a>
+							<ul class="submenu">
+								% for subitem in item[2]:
+								<li><a class="menu_mnuStats" href="${subitem[1]}"><strong>${subitem[0]}</strong><span>${subitem[2]}</span></a></li>
+								% endfor
+							</ul>					
+						</li>
+						% endfor				
+					</ul>
+				</div>
+			</div>
+		</div>
+		<div class="Container">
+			<div class="Content">
+				${self.content()}
+			</div>
+		</div>
+	</div>
+	</body>
+</html>

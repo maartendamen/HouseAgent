@@ -1,0 +1,70 @@
+<%inherit file="/master.html"/>
+
+<%def name="head()">
+<script language='javascript'>
+$(document).ready(function() 
+{
+	$('table td img.delete').click(function(){
+	    var answer = confirm("Are you sure you want to delete this plugin?")
+	    if (answer){
+	    	var elem = $(this)
+	    	id = $(this).parent().parent().parent().attr('id')
+	    	console.log("id=");
+	    	console.log(id)
+	    	var dataString = 'id=' + id;
+	    	
+			$.ajax({
+				type: "POST",
+				url: "/plugin_del", 
+				data: dataString,
+				success: function(data) {
+							elem.parent().parent().parent().remove();
+						 }
+			});
+	    }	
+	    return false;
+	});
+});
+</script>
+</%def>
+
+<%def name="content()">
+<div id="output"></div>
+<table cellspacing="0" cellpadding="0" align="left" width="800" id="plugins">
+	<tbody>
+		<tr>
+			<td class="HeadText">Plugin management</td>
+		</tr>
+		<tr>
+			<td class="body info">
+				<p>This page allows management of the plugins created in the HouseAgent database.</p>
+			</td>
+		</tr>
+		<tr>
+			<td class="body">
+				<table class="InfoTable" cellspacing="0" cellpadding="0" border="0" width="100%">
+					<tbody>
+						<tr class="HeadTable">
+							<td nowrap="" width="30%">Name</td>
+							<td nowrap="" width="40%">Authcode</td>
+							<td nowrap="" width="20%">Location</td>
+							<td nowrap="" width="5%">Actions</td>
+						</tr>
+						% for plugin in result:
+						<tr class="Row" id=${plugin[2]}>
+							<td>${plugin[0]}</td>
+							<td>${plugin[1]}</td>
+							<td>${plugin[3]}</td>
+							<td>
+								<a href="#delete"><img class="delete" border="0" src="/images/delete.png"></a>
+								<a href="/plugin_edit?id=${plugin[2]}"><img border="0" src="/images/edit.png"></a>
+							</td>														
+						</tr>
+						% endfor
+					</tbody>
+				</table>
+			</td>
+		</tr>
+	</tbody>
+</table>
+</%def>

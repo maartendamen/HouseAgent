@@ -1,0 +1,106 @@
+<%inherit file="/master.html"/>
+
+<%def name="head()">
+<script language='javascript'>
+$(document).ready(function() 
+{
+    $('table td img.delete').click(function(){
+        var answer = confirm("Are you sure you want to delete this event? This will also delete any triggers, actions and conditions associated with this event!")
+        if (answer){
+            var elem = $(this)
+            id = $(this).parent().parent().parent().attr('id')
+            console.log("id=");
+            console.log(id)
+            var dataString = 'id=' + id;
+            
+            $.ajax({
+                type: "POST",
+                url: "/event_del", 
+                data: dataString,
+                success: function(data) {
+                            elem.parent().parent().parent().remove();
+                         }
+            });
+        }   
+        return false;
+    });
+});
+</script>
+</%def>
+
+<%def name="content()">
+<div id="output"></div>
+<table cellspacing="0" cellpadding="0" align="left" width="100%" id="events">
+	<tbody>
+		<tr>
+			<td class="HeadText">Events management</td>
+		</tr>
+		<tr>
+			<td class="body info">
+				<p>This page allows management of events created in the HouseAgent database.</p>
+			</td>
+		</tr>
+		<tr>
+			<td class="body">
+				<table class="InfoTable" cellspacing="0" cellpadding="0" border="0" width="100%">
+					<tbody>
+						<tr class="HeadTable">
+							<td nowrap="" width="20%">Name</td>
+							<td nowrap="" width="5%">Enabled</td>
+							<td nowrap="" width="20%">Trigger</td>
+							<td nowrap="" width="20%">Conditions</td>
+							<td nowrap="" width="20%">Actions</td>
+							<td nowrap="" width="5%">Options</td>
+						</tr>
+						% for e in events:
+						<tr class="Row" id=${e.id}>
+							<td>${e.name}</td>
+							<td>${e.enabled}</td>
+							% for t in triggers:
+                                % if e.id == t.event_id:
+									% if t.type == "Absolute time":
+									    <td>${t.cron}</td>
+									% elif t.type == "Device value change":
+									    <td>Triggered when value '${t.value}' on '${t.device}' ${t.condition} '${t.condition_value}'</td>
+									% endif
+									% if t.conditions == 'true':
+									<td>The following conditions apply:<br>
+									   % for c in conditions:
+									       % if e.id == c.event_id:
+									           % if c.type == "Device value":
+									               - '${c.value}' on '${c.device}' must be ${c.condition} '${c.condition_value}'<br>
+									           % endif
+									       % endif
+									   % endfor
+									</td>
+									% else:
+									<td>None</td>
+									% endif
+								% endif
+							% endfor
+							<td>
+							% for a in actions:
+							     % if e.id == a.event_id:
+							         % if a.type == "Device action":
+                                        % if a.control_type == "CONTROL_TYPE_ON_OFF":
+							                 Turn device '${a.device}' (${a.control_value_name}) ${a.command}
+							            % elif a.control_type == "CONTROL_TYPE_THERMOSTAT":
+							                 Set thermostat setpoint '${a.device}' (${a.control_value_name}) to '${a.command}'
+							            % endif
+							         % endif
+							     % endif
+							% endfor
+							</td>
+							<td>
+								<a href="#delete"><img class="delete" border="0" src="/images/delete.png"></a>
+								<a href="/location_edit?id=${e.id}"><img border="0" src="/images/edit.png"></a>
+							</td>														
+						</tr>
+						% endfor
+					</tbody>
+				</table>
+			</td>
+		</tr>
+	</tbody>
+</table>
+</%def>

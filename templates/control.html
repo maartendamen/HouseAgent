@@ -1,0 +1,96 @@
+<%inherit file="/master.html"/>
+
+<%def name="head()">
+<script src="/js/jquery-spin.js"></script>
+<script language='javascript'>
+function control(plugin, address, action, statusfield)
+{
+        var dataString = 'plugin=' + plugin + '&address=' + address + '&action=' + action
+        
+        $.ajax({
+            type: "POST",
+            url: "/control_onoff", 
+            data: dataString,
+            success: function(data) {
+                        $('#' + statusfield).html(action);
+                     }
+        });
+}
+
+function thermostat_set(plugin, address, device_id)
+{
+    temp = $('#stat' + device_id).val();
+    
+    var dataString = 'plugin=' + plugin + '&address=' + address + '&temp=' + temp
+    
+    $.ajax({
+        type: "POST",
+        url: "/control_stat",
+        data: dataString,
+        succes: function(data) {
+            $('#status' + device_id).html(temp);
+        }
+    });
+
+}
+    
+$(document).ready(function() 
+{
+    $('.spin').spin({
+        imageBasePath: '/images/',
+        interval: 0.1
+    });
+
+});
+</script>
+</%def>
+<%def name="content()">
+<table cellspacing="0" cellpadding="0" align="center" width="100%">
+	<tbody>
+		<tr>
+			<td class="HeadText">Lighting and control devices</td>
+		</tr>
+		<tr>
+			<td class="body info">
+				<p>This page lists information about lighting and control devices, this basically is any device that has a controlable function. For example: light switches, dimmers, thermostats etc.</p>
+			</td>
+		</tr>
+		<tr>
+			<td class="body">
+				<table class="InfoTable" cellspacing="0" cellpadding="0" border="0" width="100%">
+					<tbody>
+						<tr class="HeadTable">
+							<td nowrap="" width="5%">Device Name</td>
+							<td nowrap="" width="5%">Device Address</td>
+							<td nowrap="" width="12%">Plugin</td>
+							<td nowrap="" width="12%">Status</td>
+							<td nowrap="" width="12%">Actions</td>
+						</tr>
+						% for device in result:
+						<tr class="Row">
+							<td>${device[0]}</td>
+							<td>${device[1]}</td>
+							<td>${device[2]}</td>
+							<td id='status${device[5]}'>${device[4]}</td>
+							<td>
+							
+							% if device[6] == "CONTROL_TYPE_ON_OFF":
+								<button onclick='javascript:control("${device[3]}", "${device[1]}", "1", "status${device[3]}");' class="ui-button ui-button-text-only ui-widget ui-state-default ui-corner-all">
+								   <span class="ui-button-text">On</span>
+								</button> 
+								<button onclick='javascript:control("${device[3]}", "${device[1]}", "0", "status${device[3]}");' class="ui-button ui-button-text-only ui-widget ui-state-default ui-corner-all">
+								   <span class="ui-button-text">Off</span>
+								</button>
+							% elif device[6] == "CONTROL_TYPE_THERMOSTAT":
+								<input value='${device[4]}' id='stat${device[5]}' size=1 type="input" class="spin" value="22" /> <button onclick='javascript:thermostat_set("${device[3]}", "${device[1]}", "${device[5]}");' class="ui-button ui-button-text-only ui-widget ui-state-default ui-corner-all"><span class="ui-button-text">Set</span></button>
+							% endif					
+							</td>
+						</tr>
+						% endfor
+					</tbody>
+				</table>
+			</td>
+		</tr>
+	</tbody>
+</table>
+</%def>

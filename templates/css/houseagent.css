@@ -1,0 +1,234 @@
+label.error {
+    background: url("/images/cancel.png") no-repeat scroll left center transparent;
+    color: red;
+    font-weight: normal;
+    padding-left: 20px;
+    text-align: left;
+    width: 140px;
+}
+
+body {
+	background: url("/images/gradient.jpg") repeat-x scroll 0 0 #EDEDED;
+	color: #676767;
+	font: 11px Tahoma,Verdana,Helvetica,sans-serif;
+	margin: 0;
+	padding: 0;
+}
+
+body {
+	font: 11px Tahoma,Verdana,Helvetica,sans-serif;
+}
+
+div#OutsidePadding {
+	margin: 0;
+	padding: 10px 30px 30px;
+}
+
+#graphzone {
+	font-size: 11px;
+}
+
+.Header {
+	clear: both;
+	display: block;
+}
+
+#Logo {
+	clear: left;
+	float: left;
+	margin: 15px 0 15px 3px;
+}
+
+.Header_Bottom {
+	display: block;
+	clear: both;
+}
+
+.Container {
+	background-color: #FFFFFF;
+	border-color: -moz-use-text-color #CFCFCF #CFCFCF;
+	border-right: 1px solid #CFCFCF;
+	border-style: none solid solid;
+	border-width: medium 1px 1px;
+	min-height: 370px;
+	padding: 10px;
+	font: 11px Tahoma,Verdana,Helvetica,sans-serif;
+	font-size: 11px;
+}
+
+.Content {
+	margin: 0 10px 10px;
+	width: 97%; 
+	height: 75%;
+}
+
+.Menu {
+	border-bottom: 7px solid #05386D;
+}
+
+.HeadText {
+	color: #000000;
+	font-size: 18px;
+	font-weight: bold;
+	padding-bottom: 10px;
+}
+
+.info p {
+	margin-bottom: 11px;
+	margin-top: 0;
+	font-size: 11px;
+}
+
+.InfoTable {
+	color: #333333;
+	font-family: Tahoma,Verdana,Helvetica,sans-serif;
+	font-size: 11px;
+	margin-top: 5px;
+}
+
+.HeadTable {
+	color: #FFFFFF;
+	font-family: Tahoma,Verdana,Helvetica,sans-serif;
+	font-size: 11px;
+	font-weight: bold;
+	padding-left: 4pt;
+	text-decoration: none;
+}
+
+.HeadTable td {
+	background-color: #E4E4E4;
+	background-image: url("/images/table_bg.gif");
+	background-repeat: repeat-x;
+	border-bottom: 1px solid #DDDDDD;
+	color: #000000;
+	padding: 4px;
+	vertical-align: middle;
+}
+
+tr.Row td {
+	background-color: #F9F9F9;
+	border-bottom: 1px solid #EDECEC;
+	padding: 3px 3px 3px 5px;
+	vertical-align: top;
+}
+
+.Panel {
+	background-color: #F9F9F9;
+	border-bottom: 5px solid #F9F9F9;
+	border-collapse: collapse;
+	margin-bottom: 0px;
+	width: 100%;
+}
+
+.PanelPlain {
+	background-color: #FFFFFF;
+	border-bottom: 5px solid #FFFFFF;
+	border-collapse: collapse;
+	margin-bottom: 20px;
+	width: 100%;
+}
+
+.PanelPlain td {
+	font-family: Tahoma,Verdana,Helvetica,sans-serif;
+	font-size: 11px;	
+}
+
+.Panel td {
+	font-family: Tahoma,Verdana,Helvetica,sans-serif;
+	font-size: 11px;
+	height: 22px;
+}
+
+.Head2, tr.Head2 td {
+	background-color: #EDECEC;
+	background-image: url("/images/table_bg.gif");
+	color: #000000;
+	font-weight: bold;
+}
+
+.Label {	
+	font-weight: normal;
+	padding: 6px 10px 0;
+	text-decoration: none;
+	vertical-align: top;
+	width: 200px;
+}
+
+.requiredfield {
+	color: red;
+	font-size: 8pt;
+	font-family: Tahoma,Verdana,Helvetica,sans-serif;
+}
+
+select {
+	font-family: Tahoma,Verdana,Helvetica,sans-serif;
+	font-size: 11px;
+	width: 250px;
+}
+
+.Field250 {
+	font-family: Tahoma,Verdana,Helvetica,sans-serif;
+	font-size: 11px;
+	width: 250px;
+}
+
+.Field30 {
+	font-family: Tahoma,Verdana,Helvetica,sans-serif;
+	font-size: 11px;
+	width: 30px;
+}
+
+
+.Button {
+	font-family: Tahoma,Verdana,Helvetica,sans-serif;
+	font-size: 10px;
+	width: 80px;
+}
+
+#tabs {
+	font-family: Tahoma,Verdana,Helvetica,sans-serif;
+	font-size: 11px;
+}
+
+#save_event {
+	font-family: Tahoma,Verdana,Helvetica,sans-serif;
+	font-size: 11px;
+}
+
+.trigger-types-panel {
+	/*float:left;*/
+	left:0 !important;
+	margin-right:4px;
+	width:190px;
+}
+
+.trigger-types-panel ul {
+	margin:0 12px 0 0;
+	padding:3px 0px 0px 0px;
+}
+
+.trigger-types-panel li {
+	background-color:#F3F3F3;
+	background-position:4px 4px;
+	background-repeat:no-repeat;
+	border:1px solid #CCCCCC;
+	list-style:none outside none;
+	margin-bottom:5px;
+	padding:3px 6px 3px 4px;
+}
+
+div.message {
+	display: none;
+	font-family: Tahoma,Verdana,Helvetica,sans-serif;
+	font-size: 11px;
+	color: #339900;
+	font-weight: bold;
+    margin-bottom: 10px;
+    margin-left: 5px;
+    padding: 5px 5px 8px 10px;
+}
+
+img.message {
+	margin-top: -2px;
+    padding-right: 4px;	
+}
