@@ -17,8 +17,13 @@ class MainWrapper():
     '''    
     def __init__(self):
         
+        if os.name == "nt":
+            config_path = os.path.join(os.environ['ALLUSERSPROFILE'], 'HouseAgent.conf')
+        else:
+            config_path = 'HouseAgent.conf'
+        
         config = ConfigParser.RawConfigParser()
-        config.read('HouseAgent.conf')
+        config.read(config_path)
         self.port = config.getint('webserver', 'port')
         self.logging = config.getboolean('general', 'logging')
         
