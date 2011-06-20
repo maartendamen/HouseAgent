@@ -3,7 +3,7 @@ from twisted.web.resource import Resource
 from twisted.web.server import Site
 from twisted.internet import reactor
 from twisted.web.static import File
-import os.path, re, imp
+import os.path, re, imp, sys
 from web_pages import *
 from core.database import Database
 
@@ -11,14 +11,16 @@ class Web(object):
     '''
     This is the HouseAgent main web interface.
     '''
-    def __init__(self, port, coordinator, eventengine):
+    def __init__(self, port, coordinator, eventengine, location):
         self.port = port # web server 0listening port
         self.coordinator = coordinator
         self.eventengine = eventengine
         self.db = Database() 
+        self.location = location
 
     def load_pages(self, path):
-        files = os.listdir( path )
+        current_dir = os.path.dirname(sys.executable)        
+        files = os.listdir( os.path.join (current_dir, path) )
         test = re.compile(".py$", re.IGNORECASE)          
         files = filter(test.search, files)                     
         filenameToModuleName = lambda f: os.path.splitext(f)[0]
@@ -104,7 +106,7 @@ class Web(object):
         #root.putChild("zwave_added", Zwave_added(self.coordinator))
         
         # Load plugin related web pages
-        modules = self.load_pages("pages")
+        modules = self.load_pages(os.path.join(self.location, "pages"))
         for module in modules:
             module.init_pages(root, self.coordinator, self.db)
 

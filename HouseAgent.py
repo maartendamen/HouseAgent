@@ -18,7 +18,7 @@ class MainWrapper():
     def __init__(self):
         
         if os.name == "nt":
-            config_path = os.path.join(os.environ['ALLUSERSPROFILE'], 'HouseAgent.conf')
+            config_path = os.path.join(os.environ['ALLUSERSPROFILE'], 'HouseAgent', 'HouseAgent.conf')
         else:
             config_path = 'HouseAgent.conf'
         
@@ -27,18 +27,30 @@ class MainWrapper():
         self.port = config.getint('webserver', 'port')
         self.logging = config.getboolean('general', 'logging')
         
+        try:
+            self.location = config.get('general', 'location')
+        except:
+            if os.name == "nt":
+                self.location = 'C:\\Program Files(x86)\\HouseAgent\\'
+        
         # Get broker information (RabbitMQ)
         self.broker_host = config.get("broker", "host")
         self.broker_port = config.getint("broker", "port")
         self.broker_user = config.get("broker", "username")
         self.broker_pass = config.get("broker", "password")
         self.broker_vhost = config.get("broker", "vhost")
+        
+        print self.location
     
     def start(self):
+
+        # Fix working directory
+        currentDir = self.location
+        os.chdir(currentDir)
         
         if self.logging:
             log.startLogging(sys.stdout)
-            log.startLogging(open('main.log', 'w'))
+            log.startLogging(open(os.path.join(self.location, 'main.log'), 'w'))
         
         log.msg("Starting HouseAgent coordinator...")
         coordinator = Coordinator("houseagent", self.broker_host, self.broker_port, self.broker_user,
@@ -48,7 +60,7 @@ class MainWrapper():
         event_handler = EventHandler(coordinator)
         
         log.msg("Starting HouseAgent web server...")
-        webserver = Web(self.port, coordinator, event_handler)
+        webserver = Web(self.port, coordinator, event_handler, self.location)
         webserver.start()
         reactor.run()
         return True    
@@ -77,16 +89,14 @@ if os.name == "nt":
     
         def SvcDoRun(self):
             import servicemanager
-            
-            currentDir = os.path.dirname(sys.executable)
-            os.chdir(currentDir)
-    
+                   
             win32evtlogutil.ReportEvent(self._svc_name_,servicemanager.PYS_SERVICE_STARTED,0,
             servicemanager.EVENTLOG_INFORMATION_TYPE,(self._svc_name_, ''))
     
             self.timeout=1000  # In milliseconds (update every second)
     
             main = MainWrapper()
+            
             if main.start():
                 win32event.WaitForSingleObject(self.hWaitStop, win32event.INFINITE) 
     
@@ -100,6 +110,7 @@ if os.name == "nt":
 if __name__ == '__main__':
     
     if os.name == "nt":    
+        
         if len(sys.argv) == 1:
             try:
     
