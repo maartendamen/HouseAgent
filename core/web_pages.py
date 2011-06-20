@@ -13,29 +13,30 @@ import os
 # Create database instance
 db = database.Database()
 
+class Root(Resource):
+    '''
+    This is the main page for HouseAgent.
+    '''
+    def render_GET(self, request):
+        lookup = TemplateLookup(directories=['templates/'])
+        template = Template(filename='templates/index.html', lookup=lookup)
+        request.write( str(template.render()))
+        request.finish()
+
 class Plugin_add(Resource):
     '''
     Template that adds a plugin to the database.
     '''    
-    #def render_GET(self, request):
-    #    lookup = TemplateLookup(directories=['templates/'])
-    #    template = Template(filename='templates/plugin_add.html', lookup=lookup)
-        
-    #    return str(template.render())
-    
-    @inlineCallbacks
     def queryresult(self, result):
         lookup = TemplateLookup(directories=['templates/'])
         template = Template(filename='templates/plugin_add.html', lookup=lookup)
         
-        locations = yield db.query_locations()
-        
-        self.request.write( str( template.render(result=result, locations=locations) ) ) 
+        self.request.write( str( template.render(locations=result) ) ) 
         self.request.finish()
     
     def render_GET(self, request):
         self.request = request
-        db.query_plugintypes().addCallback(self.queryresult)
+        db.query_locations().addCallback(self.queryresult)
         return NOT_DONE_YET  
 
 class Plugin_add_do(Resource):

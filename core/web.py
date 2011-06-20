@@ -49,6 +49,9 @@ class Web(object):
         root = Resource()
         site = Site(root)
         
+        # Main page
+        root.putChild("", Root())
+        
         # Room management
         root.putChild("location_add", Location_add())
         root.putChild("location_added", Location_added())
