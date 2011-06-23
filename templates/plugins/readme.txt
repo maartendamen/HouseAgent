@@ -1,0 +1,1 @@
+This is the directory where plug-ins should put the templates.

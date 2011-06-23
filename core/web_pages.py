@@ -20,8 +20,7 @@ class Root(Resource):
     def render_GET(self, request):
         lookup = TemplateLookup(directories=['templates/'])
         template = Template(filename='templates/index.html', lookup=lookup)
-        request.write( str(template.render()))
-        request.finish()
+        return str(template.render())
 
 class Plugin_add(Resource):
     '''

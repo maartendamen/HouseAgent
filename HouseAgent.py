@@ -62,7 +62,7 @@ class MainWrapper():
         log.msg("Starting HouseAgent web server...")
         webserver = Web(self.port, coordinator, event_handler, self.location)
         webserver.start()
-        reactor.run()
+        reactor.run(installSignalHandlers=0)
         return True    
 
 if os.name == "nt":    
