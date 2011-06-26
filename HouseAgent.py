@@ -16,11 +16,12 @@ class MainWrapper():
     core components for HouseAgent such as the event engine, network coordinator etc.
     '''    
     def __init__(self):
-        
-        if os.name == "nt":
-            config_path = os.path.join(os.environ['ALLUSERSPROFILE'], 'HouseAgent', 'HouseAgent.conf')
-        else:
-            config_path = 'HouseAgent.conf'
+
+        try:
+            from win32com.shell import shellcon, shell            
+            config_path = os.path.join(shell.SHGetFolderPath(0, shellcon.CSIDL_COMMON_APPDATA, 0, 0), 'HouseAgent', 'HouseAgent.conf')
+        except ImportError:
+            config_path = os.path.expanduser("~")
         
         config = ConfigParser.RawConfigParser()
         config.read(config_path)
@@ -39,8 +40,6 @@ class MainWrapper():
         self.broker_user = config.get("broker", "username")
         self.broker_pass = config.get("broker", "password")
         self.broker_vhost = config.get("broker", "vhost")
-        
-        print self.location
     
     def start(self):
 

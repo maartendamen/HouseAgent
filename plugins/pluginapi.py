@@ -1,3 +1,8 @@
+import os, sys
+import ConfigParser
+if os.name == "nt":
+    from twisted.internet import win32eventreactor
+    win32eventreactor.install()
 from twisted.internet import reactor
 from twisted.internet.protocol import ClientCreator
 from txamqp.queue import Closed
@@ -15,18 +20,31 @@ class PluginAPI(object):
     This is the PluginAPI for HouseAgent, it allows you to create a connection to the broker.
     ''' 
     def __init__(self, plugin_id=None, plugin_type=None, broker_ip='127.0.0.1', broker_port=5672, username='guest', password='guest', vhost='/', logging=False):
-
+        
         self._broker_host = broker_ip
         self._broker_port = broker_port
         self._broker_user = username
         self._broker_pass = password
         self._broker_vhost = vhost
+        log.msgging = logging
 
         self._qname = plugin_id
         self._plugintype = plugin_type
         self._tag = 'mq%d' % id(self)
         
-        self._logging = True
+        if logging:
+            log.startLogging(sys.stdout)            
+            log.startLogging(open(plugin_id + '.log', 'w+'))
+       
+        try:
+            from win32com.shell import shellcon, shell            
+            config_path = os.path.join(shell.SHGetFolderPath(0, shellcon.CSIDL_COMMON_APPDATA, 0, 0), 'HouseAgent', 'HouseAgent.conf')
+        except ImportError:
+            config_path = os.path.expanduser("~")
+            
+        config = ConfigParser.RawConfigParser()
+        config.read(config_path) 
+        self._location = config.get('general', 'location')
 
         self._connect_client()
 
@@ -34,18 +52,19 @@ class PluginAPI(object):
     def _connect_client(self):
         '''
         Sets up a client connection to the RabbitMQ broker.
-        '''        
-        spec = txamqp.spec.load("../../specs/amqp0-8.xml")
+        '''
+        spec = txamqp.spec.load(os.path.join(self._location, "specs", "amqp0-8.xml"))
+            
         try:
             client = yield ClientCreator(reactor, AMQClient, TwistedDelegate(), self._broker_vhost, spec).connectTCP(self._broker_host, int(self._broker_port))
         except ConnectionRefusedError:            
-            self._log("Failed to connect to RabbitMQ broker.. retrying..")
+            log.msg("Failed to connect to RabbitMQ broker.. retrying..")
             reactor.callLater(10.0, self._connect_client)
             return
         except Exception, e:
-            self._log("Unhandled exception while connecting to RabbitMQ broker: %s" % e)
+            log.msg("Unhandled exception while connecting to RabbitMQ broker: %s" % e)
           
-        self._log("Connected to RabbitMQ broker, authenticating...")
+        log.msg("Connected to RabbitMQ broker, authenticating...")
         yield client.authenticate(self._broker_user, self._broker_pass)
         self._setup(client)
     
@@ -56,41 +75,41 @@ class PluginAPI(object):
         try:
             self._channel = yield self._client.channel(1)
         except:
-            self._log("Error setting up RabbitMQ communication channel!")      
+            log.msg("Error setting up RabbitMQ communication channel!")      
 
         try:
             yield self._channel.channel_open()
         except:
-            self._log("Error opening RabbitMQ communication channel!")
+            log.msg("Error opening RabbitMQ communication channel!")
                         
         # Declare exchange
         try:
             yield self._channel.exchange_declare(exchange="houseagent.direct", type="direct", durable="True")
         except:
-            self._log("Error declaring RabbitMQ exchange!")
+            log.msg("Error declaring RabbitMQ exchange!")
 
         # Declare queue
         try:
             yield self._channel.queue_declare(queue=self._qname, durable=True, auto_delete=True)
         except:
-            self._log("Error declaring RabbitMQ queue!")
+            log.msg("Error declaring RabbitMQ queue!")
 
         # Bind queue
         try:
             yield self._channel.queue_bind(queue=self._qname, exchange="houseagent.direct",
                                      routing_key=self._qname)
         except:
-            self._log("Error binding RabbitMQ queue's!")
+            log.msg("Error binding RabbitMQ queue's!")
 
         # Set-up consumer
         try:
             self._channel.basic_consume(queue=self._qname, no_ack=True,
                                         consumer_tag=self._tag)
         except:
-            self._log("Error setting up RabbitMQ consumer!")
+            log.msg("Error setting up RabbitMQ consumer!")
 
         # Start receiving message from the broker
-        self._log("Succesfully setup RabbitMQ broker connection...")
+        log.msg("Succesfully setup RabbitMQ broker connection...")
         self._client.queue(self._tag).addCallback(lambda queue: self.handle_msg(None, queue))                    
         
         # This checks all plugins every 10 seconds
@@ -109,13 +128,6 @@ class PluginAPI(object):
 
     def setup_error(self, failure):
         print 'ERROR: failed to create RPC Receiver: %s' % failure
-
-    def _log(self, msg):
-        '''
-        This logs a message to the HouseAgent log.
-        '''
-        if self._logging:
-            log.msg(msg)
     
     def handle_msg(self, msg, queue):
         d = queue.get()
@@ -172,10 +184,10 @@ class PluginAPI(object):
     def register_thermostat_setpoint(self, calling_class):
         self.thermostatcallback = calling_class
             
-    def valueUpdate(self, address, values):
-        """
+    def value_update(self, address, values):
+        '''
         Called by a plugin when a device value has been updated.
-        """
+        '''
         content = {"address": address,
                    "values": values, 
                    "time": time.time(),
