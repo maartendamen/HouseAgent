@@ -17,39 +17,30 @@ class MainWrapper():
     '''    
     def __init__(self):
 
-        try:
-            from win32com.shell import shellcon, shell            
-            config_path = os.path.join(shell.SHGetFolderPath(0, shellcon.CSIDL_COMMON_APPDATA, 0, 0), 'HouseAgent', 'HouseAgent.conf')
-        except ImportError:
-            config_path = os.path.expanduser("~")
+        from utils.generic import get_configurationpath
+        self.config_path = get_configurationpath()
         
-        config = ConfigParser.RawConfigParser()
-        config.read(config_path)
-        self.port = config.getint('webserver', 'port')
-        self.logging = config.getboolean('general', 'logging')
-        
-        try:
-            self.location = config.get('general', 'location')
-        except:
-            if os.name == "nt":
-                self.location = 'C:\\Program Files(x86)\\HouseAgent\\'
-        
-        # Get broker information (RabbitMQ)
-        self.broker_host = config.get("broker", "host")
-        self.broker_port = config.getint("broker", "port")
-        self.broker_user = config.get("broker", "username")
-        self.broker_pass = config.get("broker", "password")
-        self.broker_vhost = config.get("broker", "vhost")
+        if os.path.exists(os.path.join(self.config_path, 'HouseAgent.conf')):
+            config = ConfigParser.RawConfigParser()
+            config.read(os.path.join(self.config_path, 'HouseAgent.conf'))
+            self.port = config.getint('webserver', 'port')
+            self.logging = config.getboolean('general', 'logging')
+            
+            # Get broker information (RabbitMQ)
+            self.broker_host = config.get("broker", "host")
+            self.broker_port = config.getint("broker", "port")
+            self.broker_user = config.get("broker", "username")
+            self.broker_pass = config.get("broker", "password")
+            self.broker_vhost = config.get("broker", "vhost")
+        else:
+            print "Configuration file not found! Make sure the configuration file is placed in the proper directory. For *nix: /etc/HouseAgent/, for Windows C:\Programdata\HouseAgent"
+            sys.exit()
     
     def start(self):
-
-        # Fix working directory
-        currentDir = self.location
-        os.chdir(currentDir)
-        
+              
         if self.logging:
             log.startLogging(sys.stdout)
-            log.startLogging(open(os.path.join(self.location, 'main.log'), 'w'))
+            log.startLogging(open('main.log', 'w'))
         
         log.msg("Starting HouseAgent coordinator...")
         coordinator = Coordinator("houseagent", self.broker_host, self.broker_port, self.broker_user,
@@ -59,9 +50,12 @@ class MainWrapper():
         event_handler = EventHandler(coordinator)
         
         log.msg("Starting HouseAgent web server...")
-        webserver = Web(self.port, coordinator, event_handler, self.location)
+        webserver = Web(self.port, coordinator, event_handler)
         webserver.start()
-        reactor.run(installSignalHandlers=0)
+        if os.name == 'nt':
+            reactor.run(installSignalHandlers=0)
+        else: 
+            reactor.run()
         return True    
 
 if os.name == "nt":    
@@ -96,6 +90,10 @@ if os.name == "nt":
     
             main = MainWrapper()
             
+            # Fix working directory, Python Windows service bug
+            current_dir = os.path.dirname(sys.executable)
+            os.chdir(current_dir)
+                        
             if main.start():
                 win32event.WaitForSingleObject(self.hWaitStop, win32event.INFINITE) 
     

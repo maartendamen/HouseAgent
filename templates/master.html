@@ -47,18 +47,22 @@ for filename in os.listdir("templates/plugins/"):
 		<script language='javascript'>
 		$(document).ready(function() 
 		{
-		    var active_menu = null;
-		
-			$('#MenuHeader ul li.dropdown > a').click(function(e)
-			{			
-			    if (active_menu == null) {
+		  var active_menu = null;
+			$('#MenuHeader ul li.dropdown > a').mouseover(function(e)
+			{         
+			    if (active_menu != $(this)) {
+			    $(active_menu).parent().children(".submenu").hide();
 			         $(this).parent().children(".submenu").show();
-			         active_menu = $(this).attr("pathname");
-			    } else if (active_menu == $(this).attr("pathname")) {
-			         $(this).parent().children(".submenu").hide();
-			         active_menu = null;
+			         active_menu = $(this);
 			    }
-				return false;
+			    return false;
+			});
+			
+			$('#MenuHeader ul.submenu').mouseleave(function(e)
+			{         
+			   $(active_menu).parent().children(".submenu").hide();
+			        active_menu = null;
+			   return false;
 			});
 		});
 		</script>

@@ -11,6 +11,6 @@ def get_configurationpath():
         from win32com.shell import shellcon, shell            
         config_path = os.path.join(shell.SHGetFolderPath(0, shellcon.CSIDL_COMMON_APPDATA, 0, 0), 'HouseAgent')
     except ImportError:
-        config_path = os.path.abspath('')
+        config_path = os.path.join('/','etc', 'HouseAgent')
     
     return config_path
