@@ -221,7 +221,10 @@ class Database():
             
         # Query device first
         device_id = yield self.dbpool.runQuery("select id from devices where address=? AND plugin_id=?", (address, int(pluginid)) )
-        device_id = device_id[0][0]
+        try:
+            device_id = device_id[0][0]
+        except IndexError:
+            returnValue('')
         
         current_value = yield self.dbpool.runQuery("select id, name, history from current_values where name=? AND device_id=?", (name, device_id))
     

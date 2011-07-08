@@ -36,16 +36,6 @@ class PluginAPI(object):
             log.startLogging(sys.stdout)            
             log.startLogging(open(plugin_id + '.log', 'w+'))
        
-        try:
-            from win32com.shell import shellcon, shell            
-            config_path = os.path.join(shell.SHGetFolderPath(0, shellcon.CSIDL_COMMON_APPDATA, 0, 0), 'HouseAgent', 'HouseAgent.conf')
-        except ImportError:
-            config_path = os.path.expanduser("~")
-            
-        config = ConfigParser.RawConfigParser()
-        config.read(config_path) 
-        self._location = config.get('general', 'location')
-
         self._connect_client()
 
     @inlineCallbacks
@@ -53,7 +43,7 @@ class PluginAPI(object):
         '''
         Sets up a client connection to the RabbitMQ broker.
         '''
-        spec = txamqp.spec.load(os.path.join(self._location, "specs", "amqp0-8.xml"))
+        spec = txamqp.spec.load("../../specs/amqp0-8.xml")
             
         try:
             client = yield ClientCreator(reactor, AMQClient, TwistedDelegate(), self._broker_vhost, spec).connectTCP(self._broker_host, int(self._broker_port))
