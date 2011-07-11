@@ -3,23 +3,25 @@
 <script language='javascript'>
 $(document).ready(function() 
 {
-	$('#adddevice_button').button();
-	$('#adddevice_button').click(function() {
+	$('#savedevice_button').button();
+	$('#savedevice_button').click(function() {
 		device_name			= $("input#name").val();
 		device_address		= $("input#address").val();
 		
 		plugin				= $("#plugin").val();
 		device_location		= $("#location").val();
+		
+		device_id           = ${device[0][0]};
 				
 		var dataString = 'name=' + device_name + '&address=' + device_address + '&plugin=' + plugin
-						 + '&location=' + device_location;
+						 + '&location=' + device_location + '&id=' + device_id;
 		
 		$.ajax({
 			type: "POST",
 			url: "/device_save", 
 			data: dataString,
 			success: function(data) {
-						$("#message").html('<img height="16" width="16" align="left" class="message" src="/images/ok.png">Device succesfully added to the database!');
+						$("#message").html('<img height="16" width="16" align="left" class="message" src="/images/ok.png">Device succesfully saved to the database!');
 						  $('#message').show('slow', function() {
 						  });
 					 }
@@ -32,11 +34,11 @@ $(document).ready(function()
 <table cellspacing="0" cellpadding="0" align="center" width="100%">
 	<tbody>
 		<tr>
-			<td class="HeadText">Add device</td>
+			<td class="HeadText">Edit device</td>
 		</tr>
 		<tr>
 			<td class="body info">
-				<p>This page allows you to add a new device to the HouseAgent database.</p>
+				<p>This page allows you to edit an existing HouseAgent device.</p>
 			</td>
 		</tr>
 		<tr>
@@ -45,7 +47,7 @@ $(document).ready(function()
 					<table class="Panel" cellspacing="0" cellpadding="2" border="0" width="100%">
 						<tbody>
 							<tr>
-								<td class="Head2" colspan="3">Add new device</td>
+								<td class="Head2" colspan="3">Edit device</td>
 							</tr>
 							<form>
 							<tr>
@@ -54,7 +56,7 @@ $(document).ready(function()
 									Device name: 
 								</td>
 								<td>
-									<input class="Field250" name="name" id="name">
+									<input class="Field250" name="name" id="name" value="${device[0][1]}">
 								</td>
 							</tr>
 							<tr>
@@ -63,7 +65,7 @@ $(document).ready(function()
 									Device address: 
 								</td>
 								<td>
-									<input class="Field250" name="address" id="address">
+									<input class="Field250" name="address" id="address" value="${device[0][2]}">
 								</td>
 							</tr>							
 							<tr>
@@ -85,11 +87,16 @@ $(document).ready(function()
 									Location: 
 								</td>
 								<td>
-									<select id="location">
-										% for location in locations:
-											<option value="${location[0]}">${location[1]}</option>
-										% endfor
-									</select>		
+                                    <select id="location">
+                                        <option value="0">Please select a location</option>
+                                        % for location in locations:
+                                            % if location[0] == device[0][4]:
+                                            <option selected value="${location[0]}">${location[1]}</option>
+                                            % else:
+                                            <option value="${location[0]}">${location[1]}</option>
+                                            % endif
+                                        % endfor
+                                    </select>    
 								</td>
 							</tr>															
 						</tbody>
@@ -101,7 +108,7 @@ $(document).ready(function()
 						<tr>
 							<td class="Label">&nbsp;</td>
 							<td height="30" valign="top">
-								<button id="adddevice_button">Add device</button><br><br>
+								<button id="savedevice_button">Save device</button><br><br>
 							</td>
 						</tr>
 					</tbody>

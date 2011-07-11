@@ -33,8 +33,8 @@ class Coordinator(object):
 
         self._qname = coordinator_name
         self._tag = 'mq%d' % id(self)
-               
-        self.db.query_plugins().addCallback(self.got_plugins)
+
+        self.load_plugins()
             
         self._connect_client()
     
@@ -140,6 +140,20 @@ class Coordinator(object):
 
     def setup_error(self, failure):
         print 'ERROR: failed to create RPC Receiver: %s' % failure
+
+    @inlineCallbacks
+    def load_plugins(self):
+        '''
+        This function loads plug-in information from the HouseAgent database.
+        '''
+        # Empty in case of a reload
+        print "reloading plug-ins"
+        self._plugins = []
+        
+        plugins = yield self.db.query_plugins()
+        for plugin in plugins:
+            p = Plugin(plugin[1], plugin[2], time.time())
+            self._plugins.append(p)       
 
     def got_plugins(self, result):
         '''

@@ -266,6 +266,22 @@ class Database():
         return self.dbpool.runQuery("INSERT INTO devices (name, address, plugin_id, location_id" \
                                     ") VALUES (?, ?, ?, ?)", (name, address, plugin_id, location_id))
 
+    def save_device(self, name, address, plugin_id, location_id, id):
+        '''
+        This functions saves a device in the HouseAgent database.
+        @param name: the name of the device
+        @param address: the address of the device
+        @param plugin_id: the plugin_id of the associated plugin
+        @param location_id: the location_id of the associated location
+        @param id: the id of the device (in case this is an update)
+        '''
+        if not id:
+            return self.dbpool.runQuery("INSERT INTO devices (name, address, plugin_id, location_id" \
+                                        ") VALUES (?, ?, ?, ?)", (name, address, plugin_id, location_id))
+        else:
+            return self.dbpool.runQuery("UPDATE devices SET name=?, address=?, plugin_id=?, location_id=? WHERE id=?", 
+                                        [name, address, plugin_id, location_id, id])
+
     def del_device(self, id):
         return self.dbpool.runQuery("DELETE FROM devices WHERE id=?", [id])
 

@@ -42,7 +42,13 @@ class Plugin_add_do(Resource):
     '''
     Class that handles registration of a plugin in the database.
     '''
-    def pluginRegistered(self, result):
+    def __init__(self, coordinator):
+        Resource.__init__(self)
+        self._coordinator = coordinator    
+    
+    def plugin_registered(self, result):
+        # Force reload of plug-ins
+        self._coordinator.load_plugins()
         self.request.write(str(self.uuid))
         self.request.finish()
     
@@ -54,7 +60,7 @@ class Plugin_add_do(Resource):
         def error(result):
             print "ERROR:", result
         
-        db.register_plugin(self.name, self.uuid, location).addCallbacks(self.pluginRegistered, error)
+        db.register_plugin(self.name, self.uuid, location).addCallbacks(self.plugin_registered, error)
         return NOT_DONE_YET
     
 class Plugin_status(Resource):
@@ -795,24 +801,46 @@ class Device_edit(Resource):
     '''
     
     @inlineCallbacks
-    def plugin_result(self, result):
+    def device_result(self, result):
         lookup = TemplateLookup(directories=['templates/'])
-        template = Template(filename='templates/plugin_edit.html', lookup=lookup)
+        template = Template(filename='templates/device_edit.html', lookup=lookup)
         
         locations = yield db.query_locations()
+        plugins = yield db.query_plugins()
         
-        print locations
-        print result
-        
-        self.request.write( str( template.render(plugin=result, locations=locations ) ) ) 
+        self.request.write( str( template.render(device=result, locations=locations, plugins=plugins ) ) ) 
         self.request.finish()            
     
     def render_GET(self, request):
         self.request = request
         id = request.args["id"][0]
         
-        db.query_device(int(id)).addCallback(self.plugin_result)
+        db.query_device(int(id)).addCallback(self.device_result)
         
+        return NOT_DONE_YET
+    
+class Device_save(Resource):
+    '''
+    This web page saves a device in the HouseAgent database.
+    '''
+    def device_saved(self, result):
+        self.request.write(str("done!"))
+        self.request.finish()
+    
+    def render_POST(self, request):
+        self.request = request
+              
+        name = request.args["name"][0]
+        address = request.args["address"][0]
+        plugin = request.args["plugin"][0]
+        location = request.args["location"][0]
+
+        try:
+            id = request.args["id"][0]
+        except KeyError:
+            id = None
+        
+        db.save_device(name, address, plugin, location, id).addCallback(self.device_saved)
         return NOT_DONE_YET
     
 class Event(object):

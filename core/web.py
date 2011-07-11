@@ -60,7 +60,7 @@ class Web(object):
         
         # Plugin management
         root.putChild("plugin_add", Plugin_add())
-        root.putChild("plugin_add_do", Plugin_add_do())
+        root.putChild("plugin_add_do", Plugin_add_do(self.coordinator))
         root.putChild("plugin_status", Plugin_status(self.coordinator))
         root.putChild("plugins", Plugins())
         root.putChild("plugin_del", Plugin_del())
@@ -69,7 +69,7 @@ class Web(object):
         
         # Device management
         root.putChild("device_add", Device_add())
-        root.putChild("device_add_do", Device_add_do())
+        root.putChild("device_save", Device_save())
         root.putChild("device_list", Device_list())
         root.putChild("device_man", Device_management())
         root.putChild("device_del", Device_del())
