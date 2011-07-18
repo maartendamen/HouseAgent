@@ -147,21 +147,12 @@ class Coordinator(object):
         This function loads plug-in information from the HouseAgent database.
         '''
         # Empty in case of a reload
-        print "reloading plug-ins"
         self._plugins = []
         
         plugins = yield self.db.query_plugins()
         for plugin in plugins:
             p = Plugin(plugin[1], plugin[2], time.time())
             self._plugins.append(p)       
-
-    def got_plugins(self, result):
-        '''
-        Get plugins from database and store in a dict.
-        '''
-        for plugin in result:
-            p = Plugin(plugin[1], plugin[2], time.time())
-            self._plugins.append(p)
             
     def send_custom(self, plugin_id, action, parameters):
         '''

@@ -43,7 +43,10 @@ class PluginAPI(object):
         '''
         Sets up a client connection to the RabbitMQ broker.
         '''
-        spec = txamqp.spec.load("../../specs/amqp0-8.xml")
+        try:
+            spec = txamqp.spec.load("../../specs/amqp0-8.xml")
+        except: 
+            spec = txamqp.spec.load("amqp0-8.xml")
             
         try:
             client = yield ClientCreator(reactor, AMQClient, TwistedDelegate(), self._broker_vhost, spec).connectTCP(self._broker_host, int(self._broker_port))

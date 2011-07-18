@@ -190,6 +190,11 @@ class Database():
                                     "INNER JOIN devices ON (current_values.device_id = devices.id) " + 
                                     "WHERE current_values.id = ?", [value_id])
 
+    def query_plugin_devices(self, plugin_id):
+        return self.dbpool.runQuery("SELECT devices.id, devices.name, devices.address, locations.name from devices " +
+                                    "LEFT OUTER JOIN locations ON (devices.location_id = locations.id) " +
+                                    "WHERE plugin_id=? ", [plugin_id])
+
     def value_updated(self, result):
         self.update_value_deferred.callback
         
