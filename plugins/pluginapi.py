@@ -155,6 +155,12 @@ class PluginAPI(object):
                     content = Content(json.dumps(result))
                     content.properties['correlation id'] = msg.content.properties['correlation id']
                     self._channel.basic_publish(exchange="", content=content, routing_key="houseagent")         
+                elif request["type"] == "dim":
+                    result = self.dimcallback.on_dim(request["address"], request["level"])
+                    
+                    content = Content(json.dumps(result))
+                    content.properties['correlation id'] = msg.content.properties['correlation id']
+                    self._channel.basic_publish(exchange="", content=content, routing_key="houseagent")         
                 elif request["type"] == "thermostat_setpoint":
                     result = self.thermostatcallback.on_thermostat_setpoint(request['address'], request['temperature'])
                     
@@ -173,6 +179,9 @@ class PluginAPI(object):
         
     def register_poweroff(self, calling_class):
         self.poweroffcallback = calling_class
+
+    def register_dim(self, calling_class):
+        self.dimcallback = calling_class
         
     def register_thermostat_setpoint(self, calling_class):
         self.thermostatcallback = calling_class

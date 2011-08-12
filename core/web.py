@@ -101,6 +101,7 @@ class Web(object):
         
         root.putChild("control", Control())        
         root.putChild("control_onoff", Control_onoff(self.coordinator))
+        root.putChild("control_dimmer", Control_dimmer(self.coordinator))
         root.putChild("control_stat", Control_stat(self.coordinator))
         #root.putChild("zwave_networkinfo", Zwave_networkinfo(self.coordinator))
         #root.putChild("zwave_add", Zwave_add(self.coordinator))

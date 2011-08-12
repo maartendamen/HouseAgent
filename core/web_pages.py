@@ -351,6 +351,8 @@ class Event_actions_by_id(Resource):
         output = {}
         if device_type[0][1] == "CONTROL_TYPE_THERMOSTAT":
             output[0] = "Set thermostat setpoint"
+        elif device_type[0][0] == "CONTROL_TYPE_DIMMER":
+            output[0] = "Set dim level"
         elif device_type[0][0] == "CONTROL_TYPE_ON_OFF":
             output[1] = "Power on"
             output[0] = "Power off"
@@ -374,6 +376,8 @@ class Event_control_types_by_id(Resource):
         output = {}
         if action_type[0][0] == "CONTROL_TYPE_THERMOSTAT":
             output[0] = "Set thermostat setpoint"
+        elif action_type[0][0] == "CONTROL_TYPE_DIMMER":
+            output[0] = "Set dim level"
         elif action_type[0][0] == "CONTROL_TYPE_ON_OFF":
             output[1] = "Power on"
             output[0] = "Power off"
@@ -541,6 +545,28 @@ class Control_onoff(Resource):
             self.coordinator.send_poweroff(plugin, address).addCallback(self.control_result)
                     
         return NOT_DONE_YET
+class Control_dimmer(Resource):
+    '''
+    Class that control dim levels of a dimmable lamp.
+    '''
+    def __init__(self, coordinator):
+        Resource.__init__(self)
+        self.coordinator = coordinator    
+    
+    def control_result(self, result):
+        print "received:", result
+        self.request.write(str(result['processed']))
+        self.request.finish()
+    
+    def render_POST(self, request):
+        self.request = request
+        plugin = request.args["plugin"][0]
+        address = request.args["address"][0]
+        level = request.args["level"][0]
+
+        self.coordinator.send_dimlevel(plugin, address, level).addCallback(self.control_result)
+                    
+        return NOT_DONE_YET    
     
 class Control_stat(Resource):
     '''

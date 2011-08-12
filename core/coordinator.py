@@ -235,6 +235,31 @@ class Coordinator(object):
                 output.append(p)
         
         return output
+
+    def send_dimlevel(self, plugin_id, address, level):
+        '''
+        Send dim level for a certain device to a plug-in.
+        @param plugin_id: the plug-in to send the dim command to
+        @param address: the address of the device
+        @param level: the level to dim with
+        '''
+        content = {'address': address,
+                   'type': 'dim',
+                   'level': level}
+        
+        self._request_id += 1
+        
+        msg = Content(json.dumps(content))
+        msg["delivery mode"] = 1
+        msg['correlation id'] = str(self._request_id)
+        msg['reply to'] = self._qname
+
+        self._channel.basic_publish(exchange="houseagent.direct", content=msg, routing_key=plugin_id)
+        
+        # create new deferred
+        d = defer.Deferred()
+        self._outstanding_requests[self._request_id] = d
+        return d    
     
     def send_poweroff(self, plugin_id, address):
         '''
