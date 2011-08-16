@@ -1,9 +1,11 @@
-from twisted.python import log
+from houseagent.core.coordinator import Coordinator
+from houseagent.core.events import EventHandler
+from houseagent.core.web import Web
 from twisted.internet import reactor
-from core.web import Web
-from core.events import EventHandler
-import sys, os, ConfigParser
-from core.coordinator import Coordinator
+from twisted.python import log
+import sys
+import os
+import ConfigParser
 if os.name == "nt":
     import win32service
     import win32serviceutil
@@ -17,7 +19,7 @@ class MainWrapper():
     '''    
     def __init__(self):
 
-        from utils.generic import get_configurationpath
+        from houseagent.utils.generic import get_configurationpath
         self.config_path = get_configurationpath()
         
         if os.path.exists(os.path.join(self.config_path, 'HouseAgent.conf')):
