@@ -1,0 +1,12 @@
+houseagent (0.01-0ubuntu2) lucid; urgency=low
+
+  * Minor modifications of the packaging meta-data 
+    to update the license details.
+
+ -- David Whyte <djwhyte@thewhytehouse.org>  Tue, 16 Aug 2011 22:38:35 +1000
+
+houseagent (0.01-0ubuntu1) lucid; urgency=low
+
+  * Initial release
+
+ -- David Whyte <david.whyte@gmail.com>  Sat, 06 Aug 2011 00:51:44 +1000
