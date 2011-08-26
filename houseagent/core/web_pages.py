@@ -7,6 +7,7 @@ from twisted.internet.defer import inlineCallbacks
 from twisted.web.resource import Resource
 from twisted.web.server import NOT_DONE_YET
 from uuid import uuid4
+import houseagent
 import datetime
 import json
 
@@ -18,8 +19,8 @@ class Root(Resource):
     This is the main page for HouseAgent.
     '''
     def render_GET(self, request):
-        lookup = TemplateLookup(directories=['templates/'])
-        template = Template(filename='templates/index.html', lookup=lookup)
+        lookup = TemplateLookup(directories=[houseagent.template_dir])
+        template = lookup.get_template('index.html')
         return str(template.render())
 
 class Plugin_add(Resource):
@@ -27,9 +28,8 @@ class Plugin_add(Resource):
     Template that adds a plugin to the database.
     '''    
     def queryresult(self, result):
-        lookup = TemplateLookup(directories=['templates/'])
-        template = Template(filename='templates/plugin_add.html', lookup=lookup)
-        
+        lookup = TemplateLookup(directories=[houseagent.template_dir])
+        template = lookup.get_template('plugin_add.html')
         self.request.write( str( template.render(locations=result) ) ) 
         self.request.finish()
     
@@ -72,8 +72,8 @@ class Plugin_status(Resource):
         self._coordinator = coordinator
 
     def valueProccesor(self, result):
-        lookup = TemplateLookup(directories=['templates/'])
-        template = Template(filename='templates/plugin_status.html', lookup=lookup)
+        lookup = TemplateLookup(directories=[houseagent.template_dir])
+        template = lookup.get_template('plugin_status.html')
         
         status_result = []
         
@@ -99,9 +99,9 @@ class Device_add(Resource):
     Template that adds a advice to the database.
     '''    
     def finished(self, result):
-        lookup = TemplateLookup(directories=['templates/'])
-        template = Template(filename='templates/device_add.html', lookup=lookup)
-        
+        lookup = TemplateLookup(directories=[houseagent.template_dir])
+        template = lookup.get_template('device_add.html')
+
         self.request.write(str(template.render(plugins=result[0], locations=result[1]))) 
         self.request.finish() 
     
@@ -141,8 +141,8 @@ class Device_list(Resource):
     Template that lists all the devices with values in the HouseAgent database.
     '''
     def finished(self, result):
-        lookup = TemplateLookup(directories=['templates/'])
-        template = Template(filename='templates/device_list.html', lookup=lookup)
+        lookup = TemplateLookup(directories=[houseagent.template_dir])
+        template = lookup.get_template('device_list.html')
         
         self.request.write(str(template.render(result=result[0], control_types=result[1]))) 
         self.request.finish()  
@@ -163,8 +163,8 @@ class Device_management(Resource):
     Template that handles device management in the database.
     '''
     def result(self, result):
-        lookup = TemplateLookup(directories=['templates/'])
-        template = Template(filename='templates/device_man.html', lookup=lookup)
+        lookup = TemplateLookup(directories=[houseagent.template_dir])
+        template = lookup.get_template('device_man.html')
         
         self.request.write(str(template.render(result=result)))
         self.request.finish()
@@ -306,8 +306,8 @@ class Event_create(Resource):
     
     @inlineCallbacks  
     def finished(self, result):
-        lookup = TemplateLookup(directories=['templates/'])
-        template = Template(filename='templates/event_create.html', lookup=lookup)
+        lookup = TemplateLookup(directories=[houseagent.template_dir])
+        template = lookup.get_template('event_create.html')
         
         triggertypes = yield db.query_triggertypes()
         devs = yield db.query_devices_simple()
@@ -455,8 +455,8 @@ class Test(Resource):
     def render_GET(self, request):
         self.request = request
         
-        lookup = TemplateLookup(directories=['templates/'])
-        template = Template(filename='templates/test.html', lookup=lookup)
+        lookup = TemplateLookup(directories=[houseagent.template_dir])
+        template = lookup.get_template('test.html')
         
         self.request.write(str(template.render())) 
         self.request.finish()
@@ -487,8 +487,8 @@ class CreateGraph(Resource):
     Template for creating a graph.
     """
     def result(self, result):
-        lookup = TemplateLookup(directories=['templates/'])
-        template = Template(filename='templates/graph_create.html', lookup=lookup)
+        lookup = TemplateLookup(directories=[houseagent.template_dir])
+        template = lookup.get_template('graph_create.html')
         
         self.request.write(str(template.render(result=result)))
         self.request.finish()
@@ -504,8 +504,8 @@ class Control(Resource):
     Class that manages device control.
     """
     def valueProcessor(self, result):
-        lookup = TemplateLookup(directories=['templates/'])
-        template = Template(filename='templates/control.html', lookup=lookup)
+        lookup = TemplateLookup(directories=[houseagent.template_dir])
+        template = lookup.get_template('control.html')
         
         self.request.write(str(template.render(result=result))) 
         self.request.finish()          
@@ -570,8 +570,8 @@ class Location_add(Resource):
     Class that adds a room to the database.
     '''
     def got_locations(self, result):
-        lookup = TemplateLookup(directories=['templates/'])
-        template = Template(filename='templates/location_add.html', lookup=lookup)
+        lookup = TemplateLookup(directories=[houseagent.template_dir])
+        template = lookup.get_template('location_add.html')
         
         print result
         
@@ -608,8 +608,8 @@ class Locations(Resource):
     Class that shows all the rooms in the database, and that allows room management.
     '''
     def result(self, result):
-        lookup = TemplateLookup(directories=['templates/'])
-        template = Template(filename='templates/locations.html', lookup=lookup)
+        lookup = TemplateLookup(directories=[houseagent.template_dir])
+        template = lookup.get_template('locations.html')
         
         self.request.write(str(template.render(result=result)))
         self.request.finish()
@@ -640,8 +640,8 @@ class Location_edit(Resource):
     '''
     
     def location_result(self, result):
-        lookup = TemplateLookup(directories=['templates/'])
-        template = Template(filename='templates/location_edit.html', lookup=lookup)
+        lookup = TemplateLookup(directories=[houseagent.template_dir])
+        template = lookup.get_template('location_edit.html')
         
         self.request.write( str( template.render(locations=result[0], loc=result[1]) ) ) 
         self.request.finish()            
@@ -724,8 +724,8 @@ class Plugins(Resource):
     Class that shows all the plugins in the database, and that allows plugin management.
     '''
     def result(self, result):
-        lookup = TemplateLookup(directories=['templates/'])
-        template = Template(filename='templates/plugins.html', lookup=lookup)
+        lookup = TemplateLookup(directories=[houseagent.template_dir])
+        template = lookup.get_template('plugins.html')
         
         self.request.write(str(template.render(result=result)))
         self.request.finish()
@@ -757,8 +757,8 @@ class Plugin_edit(Resource):
     
     @inlineCallbacks
     def plugin_result(self, result):
-        lookup = TemplateLookup(directories=['templates/'])
-        template = Template(filename='templates/plugin_edit.html', lookup=lookup)
+        lookup = TemplateLookup(directories=[houseagent.template_dir])
+        template = lookup.get_template('plugin_edit.html')
         
         locations = yield db.query_locations()
         
@@ -802,8 +802,8 @@ class Device_edit(Resource):
     
     @inlineCallbacks
     def device_result(self, result):
-        lookup = TemplateLookup(directories=['templates/'])
-        template = Template(filename='templates/device_edit.html', lookup=lookup)
+        lookup = TemplateLookup(directories=[houseagent.template_dir])
+        template = lookup.get_template('device_edit.html')
         
         locations = yield db.query_locations()
         plugins = yield db.query_plugins()
@@ -967,8 +967,8 @@ class Events(Resource):
             
             actions.append(a)      
 
-        lookup = TemplateLookup(directories=['templates/'])
-        template = Template(filename='templates/events.html', lookup=lookup)
+        lookup = TemplateLookup(directories=[houseagent.template_dir])
+        template = lookup.get_template('events.html')
         
         self.request.write(str(template.render(events=events, triggers=triggers, conditions=conditions_out,
                                                actions=actions)))

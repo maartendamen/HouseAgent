@@ -1,5 +1,6 @@
 <%
-import os          
+import os
+import houseagent
 from xml.dom import minidom 
 
 main_items = []
@@ -28,11 +29,11 @@ def parse_config(config):
         main_item = [name, url, sub_items, image]       
         main_items.append(main_item)
 
-parse_config("templates/menu.xml")
-for filename in os.listdir("templates/plugins/"):
+parse_config(os.path.join(houseagent.template_dir, "menu.xml"))
+for filename in os.listdir(houseagent.template_plugin_dir):
     if not os.path.isfile(filename):
-        if (os.path.exists(os.path.join("templates/plugins", filename, "menu.xml"))):
-            parse_config(os.path.join("templates/plugins", filename, "menu.xml"))
+        if (os.path.exists(os.path.join(houseagent.template_plugin_dir, filename, "menu.xml"))):
+            parse_config(os.path.join(houseagent.template_plugin_dir, filename, "menu.xml"))
 %>
 <html>
 	<head>

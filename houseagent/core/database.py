@@ -15,9 +15,16 @@ class Database():
         
         self.update_value_deferred = None
         self.update_value_value = None
+        
+        import houseagent
+        if os.path.exists(houseagent.db_location):
+            db_file = houseagent.db_location
+        else:
+            db_file = houseagent.db_name
+
 
         if type == "sqlite":
-            self.dbpool = ConnectionPool("sqlite3", "houseagent.db", check_same_thread=False)
+            self.dbpool = ConnectionPool("sqlite3", db_file, check_same_thread=False)
 
     def query_plugin_auth(self, authcode):
         return self.dbpool.runQuery("SELECT authcode, id from plugins WHERE authcode = '%s'" % authcode)
