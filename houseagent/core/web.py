@@ -26,15 +26,12 @@ class Web(object):
         files = filter(test.search, files)                     
         filenameToModuleName = lambda f: os.path.splitext(f)[0]
         moduleNames = sorted(map(filenameToModuleName, files))
-        print sys.path
-        print moduleNames
         f, filename, desc = imp.find_module('houseagent')
         ha = imp.load_module('houseagent', f, filename, desc)
         f, filename, desc = imp.find_module('pages', ha.__path__)
         plugin = imp.load_module('pages', f, filename, desc)
         modules = []
-        
-        #print moduleNames
+
         for m in moduleNames:
             # skip any files starting with '__', such as __init__.py
             if m.startswith('__'):
