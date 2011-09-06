@@ -1,15 +1,17 @@
-from twisted.internet import reactor, task
-from twisted.internet.protocol import ClientCreator
-from txamqp.queue import Closed
-from txamqp.protocol import AMQClient
-from txamqp.client import TwistedDelegate
-import txamqp.spec, os, inspect, json, time
-from txamqp.content import Content
-from core.database import Database
-from twisted.internet import defer
+from houseagent.core.database import Database
+from twisted.internet import defer, reactor, task
 from twisted.internet.defer import inlineCallbacks
-from twisted.internet.error import ConnectionRefusedError, ConnectionLost
+from twisted.internet.error import ConnectionRefusedError
+from twisted.internet.protocol import ClientCreator
 from twisted.python import log
+from txamqp.client import TwistedDelegate
+from txamqp.content import Content
+from txamqp.protocol import AMQClient
+from txamqp.queue import Closed
+import json
+import os.path
+import time
+import txamqp.spec
 
 class Coordinator(object):
     '''
@@ -50,7 +52,12 @@ class Coordinator(object):
         '''
         Sets up a client connection to the RabbitMQ broker.
         '''        
-        spec = txamqp.spec.load("specs/amqp0-8.xml")
+        # Check locally, when running in developer mode
+        if os.path.exists("specs/amqp0-8.xml"):
+            spec = txamqp.spec.load("specs/amqp0-8.xml")
+        # Check in /etc/HouseAgent when deployed.
+        elif os.path.exists("/etc/HouseAgent/amqp0-8.xml"):
+            spec = txamqp.spec.load("/etc/HouseAgent/amqp0-8.xml")
         try:
             client = yield ClientCreator(reactor, AMQClient, TwistedDelegate(), self._broker_vhost, spec).connectTCP(self._broker_host, int(self._broker_port))
         except ConnectionRefusedError:            
@@ -231,6 +238,7 @@ class Coordinator(object):
         '''
         output = []
         for p in self._plugins:
+
             if p.type == type:
                 output.append(p)
         

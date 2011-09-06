@@ -1,19 +1,20 @@
-import os, sys
-import ConfigParser
+from twisted.internet import reactor, task
+from twisted.internet.defer import inlineCallbacks
+from twisted.internet.error import ConnectionRefusedError
+from twisted.internet.protocol import ClientCreator
+from twisted.python import log
+from txamqp.client import TwistedDelegate
+from txamqp.content import Content
+from txamqp.protocol import AMQClient
+from txamqp.queue import Closed
+import sys
+import txamqp.spec
+import os
+import json
+import time
 if os.name == "nt":
     from twisted.internet import win32eventreactor
     win32eventreactor.install()
-from twisted.internet import reactor
-from twisted.internet.protocol import ClientCreator
-from txamqp.queue import Closed
-from txamqp.protocol import AMQClient
-from txamqp.client import TwistedDelegate
-import txamqp.spec, os, inspect, json, time
-from txamqp.content import Content
-from twisted.internet import task
-from twisted.internet.defer import inlineCallbacks
-from twisted.internet.error import ConnectionRefusedError, ConnectionLost
-from twisted.python import log
 
 class PluginAPI(object):
     '''

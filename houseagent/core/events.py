@@ -1,4 +1,4 @@
-import database
+from houseagent.core import database
 from twisted.internet.defer import inlineCallbacks, returnValue
 from twisted.scheduling.cron import CronSchedule
 from twisted.scheduling.task import ScheduledCall

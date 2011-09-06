@@ -1,0 +1,24 @@
+This work was packaged for Debian by:
+
+    David Whyte <david.whyte@gmail.com> on Fri, 05 Aug 2011 23:52:48 +1000
+
+It was downloaded from http://projects.maartendamen.com/projects/houseagent
+
+Upstream Author(s):
+
+    Maarten Damen m.damen@gmail.com
+
+Copyright:
+
+    Copyright (C) 2011 Maarten Damen
+
+License:
+
+    GPL version 2
+
+The Debian packaging is:
+
+    Copyright (C) 2011 David Whyte <david.whyte@gmail.com>
+
+and is licensed under the GPL version 2, 
+see `/usr/share/common-licenses/GPL-2'.

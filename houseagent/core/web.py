@@ -1,11 +1,13 @@
-from twisted.web.resource import Resource
-#from utils.websocket import WebSocketSite
-from twisted.web.server import Site
+from houseagent.core.database import Database
+from houseagent.core.web_pages import *
 from twisted.internet import reactor
+from twisted.web.resource import Resource
+from twisted.web.server import Site
 from twisted.web.static import File
-import os.path, re, imp, sys
-from web_pages import *
-from core.database import Database
+import os.path
+import sys
+import re
+import imp
 
 class Web(object):
     '''
@@ -18,12 +20,17 @@ class Web(object):
         self.db = Database() 
 
     def load_pages(self, path):
-        files = os.listdir( path )
+            
+        files = os.listdir( os.path.join (os.path.dirname(houseagent.__file__), path) )
         test = re.compile(".py$", re.IGNORECASE)          
         files = filter(test.search, files)                     
         filenameToModuleName = lambda f: os.path.splitext(f)[0]
         moduleNames = sorted(map(filenameToModuleName, files))
-        f, filename, desc = imp.find_module('pages')
+        print sys.path
+        print moduleNames
+        f, filename, desc = imp.find_module('houseagent')
+        ha = imp.load_module('houseagent', f, filename, desc)
+        f, filename, desc = imp.find_module('pages', ha.__path__)
         plugin = imp.load_module('pages', f, filename, desc)
         modules = []
         
@@ -87,14 +94,10 @@ class Web(object):
         root.putChild("events", Events())
         root.putChild("event_del", Event_del(self.eventengine))
 
-        current_dir = os.path.abspath(os.curdir) 
-        root.putChild("css", File(os.path.join(current_dir, 'templates', 'css')))
-        root.putChild("js", File(os.path.join(current_dir, 'templates', 'js')))
-        root.putChild("images", File(os.path.join(current_dir, 'templates', 'images')))
-        
-        #root.putChild("latitude_locations", Latitude_locations(self.databus))
-        #root.putChild("latitude_accounts", Latitude_accounts(self.databus))
-        
+        root.putChild("css", File(os.path.join(houseagent.template_dir, 'css')))
+        root.putChild("js", File(os.path.join(houseagent.template_dir, 'js')))
+        root.putChild("images", File(os.path.join(houseagent.template_dir, 'images')))
+                
         root.putChild("test", Test())
         root.putChild("graphdata", GraphData())
         root.putChild("create_graph", CreateGraph())
@@ -103,9 +106,6 @@ class Web(object):
         root.putChild("control_onoff", Control_onoff(self.coordinator))
         root.putChild("control_dimmer", Control_dimmer(self.coordinator))
         root.putChild("control_stat", Control_stat(self.coordinator))
-        #root.putChild("zwave_networkinfo", Zwave_networkinfo(self.coordinator))
-        #root.putChild("zwave_add", Zwave_add(self.coordinator))
-        #root.putChild("zwave_added", Zwave_added(self.coordinator))
         
         # Load plugin related web pages
         modules = self.load_pages("pages")
