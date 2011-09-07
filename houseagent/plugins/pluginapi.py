@@ -7,17 +7,14 @@ from txamqp.content import Content
 from txamqp.protocol import AMQClient
 from txamqp.queue import Closed
 from twisted.python import log as twisted_log
+from twisted.internet import reactor, task
+from houseagent import log_path
 import logging, logging.handlers
 import sys
 import txamqp.spec
 import os
 import json
 import time
-if os.name == "nt":
-    from twisted.internet import win32eventreactor
-    win32eventreactor.install()
-from twisted.internet import reactor, task
-from houseagent import log_path
 
 class PluginAPI(object):
     '''
