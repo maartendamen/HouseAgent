@@ -1,4 +1,3 @@
-from twisted.internet import reactor, task
 from twisted.internet.defer import inlineCallbacks
 from twisted.internet.error import ConnectionRefusedError
 from twisted.internet.protocol import ClientCreator
@@ -7,6 +6,7 @@ from txamqp.client import TwistedDelegate
 from txamqp.content import Content
 from txamqp.protocol import AMQClient
 from txamqp.queue import Closed
+import logging, logging.handlers
 import sys
 import txamqp.spec
 import os
@@ -15,6 +15,7 @@ import time
 if os.name == "nt":
     from twisted.internet import win32eventreactor
     win32eventreactor.install()
+from twisted.internet import reactor, task
 
 class PluginAPI(object):
     '''
@@ -211,3 +212,69 @@ class PluginAPI(object):
         msg = Content(json.dumps(content))
         msg["delivery mode"] = 1
         self._channel.basic_publish(exchange="houseagent.direct", content=msg, routing_key="network")
+        
+class Logging():
+    '''
+    This class provides generic logging facilities for HouseAgent plug-ins. 
+    '''
+    
+    def __init__(self, name, maxkbytes=1024, count=5, console=True):
+        '''
+        Using this class you can add logging to your plug-in.
+        It provides a generic way of storing logging information.
+        
+        @param name: the name of the logfile 
+        @param maxkbytes: the maximum logfile size in kilobytes 
+        @param count: the maximum number of logfiles to keep for rotation
+        @param console: specifies whether or not to log to the console, this defaults to "True"
+        '''
+        self.logger = logging.getLogger()
+        
+        log_handler = logging.handlers.RotatingFileHandler(filename = "%s.log" % name, 
+                                                       maxBytes = maxkbytes * 1024,
+                                                       backupCount = count)
+        
+        formatter = logging.Formatter('%(asctime)s %(levelname)s: %(message)s')
+        
+        if console:
+            console_handler = logging.StreamHandler(sys.stdout) 
+            console_handler.setFormatter(formatter)
+        
+        log_handler.setFormatter(formatter)
+        
+        self.logger.addHandler(log_handler)
+        self.logger.addHandler(console_handler)
+        
+    def set_level(self, level):        
+        '''
+        This function allows you to set the level of logging.
+        By default everything will be logged. 
+        @param level: the level of logging, valid arguments are debug, warning or error.
+        '''
+        if level == 'debug':
+            self.logger.setLevel(logging.DEBUG)
+        elif level == 'warning':
+            self.logger.setLevel(logging.WARNING)
+        elif level == 'error':
+            self.logger.setLevel(logging.ERROR)
+            
+    def error(self, message):
+        '''
+        This function allows you to log a plugin error message.
+        @param message: the message to log.
+        '''
+        self.logger.log(logging.ERROR, message)
+        
+    def warning(self, message):
+        '''
+        This function allows you to log a plugin warning message.
+        @param message: the message to log.
+        '''
+        self.logger.log(logging.WARNING, message)
+    
+    def debug(self, message):
+        '''
+        This function allows you to log a plugin debug message.
+        @param message: the message to log.
+        '''        
+        self.logger.log(logging.DEBUG, message)
