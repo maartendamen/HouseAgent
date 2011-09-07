@@ -5,6 +5,7 @@ from twisted.internet.defer import inlineCallbacks, returnValue
 import datetime
 import time
 import os.path
+from houseagent import db_location
 
 class Database():
     """
@@ -15,16 +16,9 @@ class Database():
         
         self.update_value_deferred = None
         self.update_value_value = None
-        
-        import houseagent
-        if os.path.exists(houseagent.db_location):
-            db_file = houseagent.db_location
-        else:
-            db_file = houseagent.db_name
-
 
         if type == "sqlite":
-            self.dbpool = ConnectionPool("sqlite3", db_file, check_same_thread=False)
+            self.dbpool = ConnectionPool("sqlite3", db_location, check_same_thread=False)
 
     def query_plugin_auth(self, authcode):
         return self.dbpool.runQuery("SELECT authcode, id from plugins WHERE authcode = '%s'" % authcode)
@@ -201,30 +195,16 @@ class Database():
                                     "LEFT OUTER JOIN locations ON (devices.location_id = locations.id) " +
                                     "WHERE plugin_id=? ", [plugin_id])
 
-    def value_updated(self, result):
-        self.update_value_deferred.callback
-        
-    def update_error(self, result):
-        print "Error!,", result
-
-    def checked_update_value(self, result, value, name, address, pluginid, updatetime):
-        if (len(result) == 1):
-            # Do we need history?
-            if result[0][2] == True:
-                DataHistory("data", result[0][0], value, "GAUGE", 60)
-            
-            print "UPDATE current_values SET value='%s', lastupdate=%s WHERE id='%s'" % (value, updatetime, result[0][0])
-            d = self.dbpool.runQuery("UPDATE current_values SET value='%s', lastupdate='%s' WHERE id='%s'" % (value, updatetime, result[0][0]))
-            d.addCallback(self.value_updated)
-            d.addErrback(self.update_error)
-        else:
-            return self.dbpool.runQuery("INSERT INTO current_values (name, value, device_id, lastupdate) VALUES ('%s', '%s', (select id from devices where address='%s' AND plugin_id='%s'),  '%s')" % (name, value, address, pluginid, updatetime))
-
     @inlineCallbacks
     def update_or_add_value(self, name, value, pluginid, address, time=None):
-        """
-        Updates or adds device values to the database.
-        """       
+        '''
+        This function updates or adds values to the HouseAgent database.
+        @param name: the name of the value
+        @param value: the actual value of the value
+        @param pluginid: the plugin which holds the device information
+        @param address: the address of the device being handled
+        @param time: the time at which the update has been received, this defaults to now()
+        '''
         if not time:
             updatetime = datetime.datetime.now().isoformat(' ').split('.')[0]
         else:
@@ -237,15 +217,16 @@ class Database():
         except IndexError:
             returnValue('')
         
-        current_value = yield self.dbpool.runQuery("select id, name, history from current_values where name=? AND device_id=?", (name, device_id))
+        #select current_values.id, current_values.name, current_values.history_heartbeat, history_types.name from current_values LEFT OUTER JOIN history_types ON (current_values.history_type_id = history_types.id)
+        current_value = yield self.dbpool.runQuery("select current_values.id, current_values.name, current_values.history_heartbeat, history_types.name from current_values LEFT OUTER JOIN history_types ON (current_values.history_type_id = history_types.id) where current_values.name=? AND current_values.device_id=?", (name, device_id))
     
         value_id = None
     
         if len(current_value) > 0:
             value_id = current_value[0][0]
             
-            if current_value[0][2] == True:
-                DataHistory("data", current_value[0][0], value, "GAUGE", 60, int(time))
+            if current_value[0][3] != None:
+                DataHistory("data", current_value[0][0], value, current_value[0][3].upper(), current_value[0][2], int(time))
                 
             yield self.dbpool.runQuery("UPDATE current_values SET value=?, lastupdate=? WHERE id=?", (value, updatetime, value_id))
         else:
@@ -425,6 +406,7 @@ class DataHistory():
     This class provides historic data logging capabilities for HouseAgent.
     """
     def __init__(self, value_name=None, value_id=None, value_value=None, type=None, heartbeat=None, time=None):
+        
         self.value_name     = value_name
         self.value_id       = value_id
         self.type           = type
@@ -461,18 +443,18 @@ class DataHistory():
         """
         ds1 = DS(dsName=self.value_name, dsType=self.type, heartbeat=self.heartbeat)
         dss = [ds1]
-        
+              
         rras = []
-                # 1 days-worth of one-minute samples --> 60/1 * 24
-        rra1 = RRA(cf='AVERAGE', xff=0.5, steps=1, rows=1440) 
-        # 7 days-worth of five-minute samples --> 60/5 * 24 * 7
-        rra2 = RRA(cf='AVERAGE', xff=0.5, steps=5, rows=2016)
-        # 30 days-worth of five-minute samples --> 60/60 * 24 * 30
-        rra3 = RRA(cf='AVERAGE', xff=0.5, steps=60, rows=720)
-        # 365 days worth of 10 minute samples --> 60/120 * 24 * 365
-        rra4 = RRA(cf='AVERAGE', xff=0.5, steps=120, rows=4380)
-        # 5 years worth of 15 minute samples --> 60/180 * 24 * 365 * 5
-        rra5 = RRA(cf='AVERAGE', xff=0.5, steps=180, rows=14600)
+        # 1 days-worth of n heartbeat samples --> 60/1 * 24
+        rra1 = RRA(cf='AVERAGE', xff=0.5, steps=1, rows=int(self.heartbeat/1.0 * 24)) 
+        # 7 days-worth of n heartbeat samples --> 60/5 * 24 * 7
+        rra2 = RRA(cf='AVERAGE', xff=0.5, steps=5, rows=int(self.heartbeat/5.0 * 24 * 7))
+        # 30 days-worth of n heartbeat samples --> 60/60 * 24 * 30
+        rra3 = RRA(cf='AVERAGE', xff=0.5, steps=60, rows=int(self.heartbeat/60.0 * 24 * 30))
+        # 365 days worth of n heartbeat samples --> 60/120 * 24 * 365
+        rra4 = RRA(cf='AVERAGE', xff=0.5, steps=120, rows=int(self.heartbeat/120.0 * 24 * 365))
+        # 10 years worth of n heartbeat samples --> 60/180 * 24 * 365 * 10
+        rra5 = RRA(cf='AVERAGE', xff=0.5, steps=180, rows=int(self.heartbeat/180.0 * 24 * 365 * 10))
         
         rras.extend([rra1, rra2, rra3, rra4, rra5])
 
