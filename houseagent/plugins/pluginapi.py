@@ -264,6 +264,8 @@ class Logging():
             self.logger.setLevel(logging.WARNING)
         elif level == 'error':
             self.logger.setLevel(logging.ERROR)
+        elif level == 'none':
+            self.logger.setLevel(logging.NOTSET)
             
     def error(self, message):
         '''
