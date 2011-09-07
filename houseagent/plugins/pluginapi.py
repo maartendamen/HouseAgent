@@ -6,6 +6,7 @@ from txamqp.client import TwistedDelegate
 from txamqp.content import Content
 from txamqp.protocol import AMQClient
 from txamqp.queue import Closed
+from twisted.python import log as twisted_log
 import logging, logging.handlers
 import sys
 import txamqp.spec
@@ -16,6 +17,7 @@ if os.name == "nt":
     from twisted.internet import win32eventreactor
     win32eventreactor.install()
 from twisted.internet import reactor, task
+from houseagent import log_path
 
 class PluginAPI(object):
     '''
@@ -228,9 +230,14 @@ class Logging():
         @param count: the maximum number of logfiles to keep for rotation
         @param console: specifies whether or not to log to the console, this defaults to "True"
         '''
-        self.logger = logging.getLogger()
         
-        log_handler = logging.handlers.RotatingFileHandler(filename = "%s.log" % name, 
+        # Start Twisted python log observer
+        observer = twisted_log.PythonLoggingObserver()
+        observer.start()
+        
+        # Regular Python logging module
+        self.logger = logging.getLogger()
+        log_handler = logging.handlers.RotatingFileHandler(filename = os.path.join(log_path, "%s.log" % name), 
                                                        maxBytes = maxkbytes * 1024,
                                                        backupCount = count)
         
@@ -263,18 +270,18 @@ class Logging():
         This function allows you to log a plugin error message.
         @param message: the message to log.
         '''
-        self.logger.log(logging.ERROR, message)
+        twisted_log.msg(message, logLevel=logging.ERROR)
         
     def warning(self, message):
         '''
         This function allows you to log a plugin warning message.
         @param message: the message to log.
         '''
-        self.logger.log(logging.WARNING, message)
+        twisted_log.msg(message, logLevel=logging.WARNING)
     
     def debug(self, message):
         '''
         This function allows you to log a plugin debug message.
         @param message: the message to log.
         '''        
-        self.logger.log(logging.DEBUG, message)
+        twisted_log.msg(message, logLevel=logging.DEBUG)
