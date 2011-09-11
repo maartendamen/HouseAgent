@@ -1,3 +1,7 @@
+import os
+if os.name == "nt":
+    from twisted.internet import win32eventreactor
+    win32eventreactor.install()
 from twisted.internet.defer import inlineCallbacks
 from twisted.internet.error import ConnectionRefusedError
 from twisted.internet.protocol import ClientCreator
@@ -12,7 +16,6 @@ from houseagent import log_path
 import logging, logging.handlers
 import sys
 import txamqp.spec
-import os
 import json
 import time
 
@@ -20,7 +23,7 @@ class PluginAPI(object):
     '''
     This is the PluginAPI for HouseAgent, it allows you to create a connection to the broker.
     ''' 
-    def __init__(self, plugin_id=None, plugin_type=None, broker_ip='127.0.0.1', broker_port=5672, username='guest', password='guest', vhost='/', logging=False):
+    def __init__(self, plugin_id=None, plugin_type=None, broker_ip='127.0.0.1', broker_port=5672, username='guest', password='guest', vhost='/'):
         
         self._broker_host = broker_ip
         self._broker_port = broker_port
@@ -32,10 +35,6 @@ class PluginAPI(object):
         self._qname = plugin_id
         self._plugintype = plugin_type
         self._tag = 'mq%d' % id(self)
-        
-        if logging:
-            log.startLogging(sys.stdout)            
-            log.startLogging(open(plugin_id + '.log', 'w+'))
        
         self._connect_client()
 
