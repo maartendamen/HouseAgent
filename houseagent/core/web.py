@@ -1,14 +1,11 @@
 from houseagent.core.database import Database
 from houseagent.core.web_pages import *
 from twisted.internet import reactor
-from twisted.web.resource import Resource
 from twisted.web.server import Site
 from twisted.web.static import File
 import os.path
-import sys
-import re
 import imp
-
+            
 class Web(object):
     '''
     This is the HouseAgent main web interface.
@@ -19,30 +16,26 @@ class Web(object):
         self.eventengine = eventengine
         self.db = Database() 
 
-    def load_pages(self, path):
-            
-        files = os.listdir( os.path.join (os.path.dirname(houseagent.__file__), path) )
-        test = re.compile(".py$", re.IGNORECASE)          
-        files = filter(test.search, files)                     
-        filenameToModuleName = lambda f: os.path.splitext(f)[0]
-        moduleNames = sorted(map(filenameToModuleName, files))
-        f, filename, desc = imp.find_module('houseagent')
-        ha = imp.load_module('houseagent', f, filename, desc)
-        f, filename, desc = imp.find_module('pages', ha.__path__)
-        plugin = imp.load_module('pages', f, filename, desc)
-        modules = []
-
-        for m in moduleNames:
-            # skip any files starting with '__', such as __init__.py
-            if m.startswith('__'):
-                continue
-            try:
-                f, filename, desc = imp.find_module(m, plugin.__path__)
-                modules.append( imp.load_module(m, f, filename, desc))
-            except ImportError:
-                continue
+    def load_pages(self, root):
+        '''
+        This function dynamically loads pages from plugins.
+        A pages.py file with atleast the init_pages() function must exist in the 
+        plugins/<pluginname>/ folder.
+        @return: an array of loaded modules
+        '''
+        plugin_dir = os.path.join(os.path.dirname(houseagent.__file__), "plugins")
+        plugin_dirs = os.listdir(plugin_dir)
         
-        return modules
+        for dir in plugin_dirs:
+            if os.path.isdir(os.path.join(plugin_dir, dir)):
+                print "Plugin directory found, directory: %s" % dir
+                try:
+                    file, pathname, description = imp.find_module("pages", [os.path.join(plugin_dir, dir)])                
+                    mod = imp.load_module("pages", file, pathname, description)
+                    mod.init_pages(root, self.coordinator, self.db)
+                    print "Loaded pages for plugin %s" % dir
+                except:
+                    print "Warning cannot load pages module for %s, no pages.py file?" % dir
         
     def start(self):
         '''
@@ -83,6 +76,7 @@ class Web(object):
 
         # Events
         root.putChild("event_create", Event_create())
+        root.putChild("event_workflow", Event_workflow())
         root.putChild("event_value_by_id", Event_value_by_id())
         root.putChild("event_getvalue", Event_getvalue())
         root.putChild("event_save", Event_save(self.eventengine))
@@ -103,10 +97,8 @@ class Web(object):
         root.putChild("control_onoff", Control_onoff(self.coordinator))
         root.putChild("control_dimmer", Control_dimmer(self.coordinator))
         root.putChild("control_stat", Control_stat(self.coordinator))
-        
-        # Load plugin related web pages
-        modules = self.load_pages("pages")
-        for module in modules:
-            module.init_pages(root, self.coordinator, self.db)
 
+        # Load plugin pages
+        self.load_pages(root)
+        
         reactor.listenTCP(self.port, site)
