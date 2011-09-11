@@ -83,6 +83,7 @@ class Web(object):
 
         # Events
         root.putChild("event_create", Event_create())
+        root.putChild("event_edit", Event_edit())
         root.putChild("event_value_by_id", Event_value_by_id())
         root.putChild("event_getvalue", Event_getvalue())
         root.putChild("event_save", Event_save(self.eventengine))

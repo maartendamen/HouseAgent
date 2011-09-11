@@ -401,6 +401,41 @@ class Database():
     def query_events(self):
         return self.dbpool.runQuery("SELECT id, name, enabled from events")
 
+    @inlineCallbacks
+    def query_event(self, id):
+        '''
+        This function queries a specified event from the database.
+        It returns generic event information
+        @param id: the id of the event
+        '''        
+        from houseagent.core.events import Trigger
+        
+        event = {}
+        event_info = yield self.dbpool.runQuery("SELECT id, name, enabled from events where id=? LIMIT 1", [id])
+        
+        event['name'] = event_info[0][1]
+        event['enabled'] = event_info[0][2]
+        
+        # Triggers
+        trigger_info = yield self.dbpool.runQuery("SELECT triggers.id, triggers.trigger_types_id, triggers.conditions, trigger_types.name from triggers INNER JOIN trigger_types ON (trigger_types.id = triggers.trigger_types_id) where events_id=?", [event_info[0][0]])
+        t = Trigger(trigger_info[0][1], event_info[0][0], trigger_info[0][2])
+        
+        trigger_parameters = yield self.dbpool.runQuery("select name, value from trigger_parameters where triggers_id=?", [trigger_info[0][0]])
+
+        for param in trigger_parameters:
+            if param[0] == "cron":
+                t.cron = param[1]
+            elif param[0] == "current_value_id":
+                t.current_value_id = param[1]
+            elif param[0] == "condition":
+                t.condition = param[1]
+            elif param[0] == "condition_value":
+                t.condition_value = param[1]
+                
+        event['trigger'] = t
+
+        returnValue(event)
+
 class DataHistory():
     """
     This class provides historic data logging capabilities for HouseAgent.

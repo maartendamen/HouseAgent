@@ -307,14 +307,14 @@ class Event_create(Resource):
     @inlineCallbacks  
     def finished(self, result):
         lookup = TemplateLookup(directories=[houseagent.template_dir])
-        template = lookup.get_template('event_create.html')
+        template = lookup.get_template('event.html')
         
         triggertypes = yield db.query_triggertypes()
         devs = yield db.query_devices_simple()
         conditiontypes = yield db.query_conditiontypes()
         
         self.request.write(str(template.render(trigger_types=triggertypes, devices=devs, action_types=result,
-                                               condition_types=conditiontypes))) 
+                                               condition_types=conditiontypes, edit=False))) 
         self.request.finish()            
     
     def render_GET(self, request):
@@ -322,6 +322,31 @@ class Event_create(Resource):
 
         db.query_actiontypes().addCallback(self.finished)
         
+        return NOT_DONE_YET
+    
+class Event_edit(Resource):
+    """
+    Template that allows editing of a device.
+    """ 
+    @inlineCallbacks  
+    def finished(self, event):
+        
+        lookup = TemplateLookup(directories=[houseagent.template_dir])
+        template = lookup.get_template('event.html')
+        
+        triggertypes = yield db.query_triggertypes()
+        devs = yield db.query_devices_simple()
+        conditiontypes = yield db.query_conditiontypes()
+        actiontypes = yield db.query_actiontypes()
+        
+        self.request.write(str(template.render(trigger_types=triggertypes, devices=devs, action_types=actiontypes,
+                                               condition_types=conditiontypes, edit=True, event=event))) 
+        self.request.finish()            
+    
+    def render_GET(self, request):
+        self.request = request
+        event_id = request.args["id"][0]
+        db.query_event(event_id).addCallback(self.finished)
         return NOT_DONE_YET
 
 class Event_value_by_id(Resource):
