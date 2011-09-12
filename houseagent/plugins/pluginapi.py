@@ -48,7 +48,7 @@ class PluginAPI(object):
         Sets up a client connection to the RabbitMQ broker.
         '''
         try:
-            spec = txamqp.spec.load("../../specs/amqp0-8.xml")
+            spec = txamqp.spec.load("../../../specs/amqp0-8.xml")
         except: 
             spec = txamqp.spec.load("amqp0-8.xml")
             

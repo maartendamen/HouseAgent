@@ -218,7 +218,7 @@ class Database():
             returnValue('')
         
         #select current_values.id, current_values.name, current_values.history_heartbeat, history_types.name from current_values LEFT OUTER JOIN history_types ON (current_values.history_type_id = history_types.id)
-        current_value = yield self.dbpool.runQuery("select current_values.id, current_values.name, current_values.history_heartbeat, history_types.name from current_values LEFT OUTER JOIN history_types ON (current_values.history_type_id = history_types.id) where current_values.name=? AND current_values.device_id=?", (name, device_id))
+        current_value = yield self.dbpool.runQuery("select id, name, history from current_values where name=? AND device_id=?", (name, device_id))
     
         value_id = None
     
