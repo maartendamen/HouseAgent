@@ -1,7 +1,11 @@
 import os
+from twisted.internet.error import ReactorAlreadyInstalledError
 if os.name == "nt":
     from twisted.internet import win32eventreactor
-    win32eventreactor.install()
+    try:
+        win32eventreactor.install()
+    except ReactorAlreadyInstalledError:
+        pass        
 from twisted.internet.defer import inlineCallbacks
 from twisted.internet.error import ConnectionRefusedError
 from twisted.internet.protocol import ClientCreator
