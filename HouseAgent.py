@@ -39,10 +39,9 @@ class MainWrapper():
             sys.exit()
     
     def start(self):     
-        
-        if self.loglevel != 'none':            
-            self.log = Logging("Main")
-            self.log.set_level(self.loglevel)
+     
+        self.log = Logging("Main")
+        self.log.set_level(self.loglevel)
         
         self.log.debug("Starting HouseAgent coordinator...")
         coordinator = Coordinator("houseagent", self.broker_host, self.broker_port, self.broker_user,
