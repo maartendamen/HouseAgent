@@ -225,8 +225,8 @@ class Database():
         if len(current_value) > 0:
             value_id = current_value[0][0]
             
-            if current_value[0][3] != None:
-                DataHistory("data", current_value[0][0], value, current_value[0][3].upper(), current_value[0][2], int(time))
+            if current_value[0][2] != None:
+                DataHistory("data", current_value[0][0], value, "GAUGE", 60, int(time))
                 
             yield self.dbpool.runQuery("UPDATE current_values SET value=?, lastupdate=? WHERE id=?", (value, updatetime, value_id))
         else:
