@@ -211,13 +211,13 @@ class Database():
             updatetime = datetime.datetime.fromtimestamp(time).isoformat(' ').split('.')[0]
             
         # Query device first
-        device_id = yield self.dbpool.runQuery("select id from devices where address=? AND plugin_id=?", (address, int(pluginid)) )
+        device_id = yield self.dbpool.runQuery("select devices.id from devices INNER JOIN plugins ON (devices.plugin_id = plugins.id) WHERE devices.address = ? and plugins.authcode = ?", (address, pluginid) )
+
         try:
             device_id = device_id[0][0]
         except IndexError:
             returnValue('')
         
-        #select current_values.id, current_values.name, current_values.history_heartbeat, history_types.name from current_values LEFT OUTER JOIN history_types ON (current_values.history_type_id = history_types.id)
         current_value = yield self.dbpool.runQuery("select id, name, history from current_values where name=? AND device_id=?", (name, device_id))
     
         value_id = None
