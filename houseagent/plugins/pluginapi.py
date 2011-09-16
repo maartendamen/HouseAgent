@@ -27,7 +27,8 @@ class PluginAPI(object):
     '''
     This is the PluginAPI for HouseAgent, it allows you to create a connection to the broker.
     ''' 
-    def __init__(self, plugin_id=None, plugin_type=None, broker_ip='127.0.0.1', broker_port=5672, username='guest', password='guest', vhost='/'):
+    def __init__(self, plugin_id=None, plugin_type=None, broker_ip='127.0.0.1', broker_port=5672, 
+                 username='guest', password='guest', vhost='/', **callbacks):
         
         self._broker_host = broker_ip
         self._broker_port = broker_port
@@ -40,8 +41,14 @@ class PluginAPI(object):
         self._plugintype = plugin_type
         self._tag = 'mq%d' % id(self)
        
+        self.crud = False
+       
         self._connect_client()
-
+        
+        for callback in callbacks:
+            if callback == "crud":
+                self.crud_callback = callbacks[callback] 
+                
     @inlineCallbacks
     def _connect_client(self):
         '''
@@ -95,6 +102,9 @@ class PluginAPI(object):
         try:
             yield self._channel.queue_bind(queue=self._qname, exchange="houseagent.direct",
                                      routing_key=self._qname)
+            if self.crud_callback:
+                yield self._channel.queue_bind(queue=self._qname, exchange="houseagent.direct", 
+                                               routing_key="crud")
         except:
             log.msg("Error binding RabbitMQ queue's!")
 
@@ -127,6 +137,7 @@ class PluginAPI(object):
         print 'ERROR: failed to create RPC Receiver: %s' % failure
     
     def handle_msg(self, msg, queue):
+        
         d = queue.get()
         d.addCallback(self.handle_msg, queue)
         d.addErrback(self.handle_err, queue)
@@ -134,6 +145,7 @@ class PluginAPI(object):
         if msg:
             print "received message", msg
             replyq = msg.content.properties.get('reply to',None)
+            message_type = msg[4]
             
             if msg.content and replyq:
                 request = json.loads(msg.content.body)
@@ -171,6 +183,16 @@ class PluginAPI(object):
                     content = Content(json.dumps(result))
                     content.properties['correlation id'] = msg.content.properties['correlation id']
                     self._channel.basic_publish(exchange="", content=content, routing_key="houseagent")         
+            
+            if message_type == 'crud':
+                # Handle CRUD callback
+                
+                request = json.loads(msg.content.body)
+                try:
+                    self.crud_callback(request['type'], request['action'], request['parameters'])
+                except Exception as e: 
+                    print "Failed to do CRUD callback, fix the plugin function: %s" % e
+                
                 
     def register_custom(self, calling_class):
         """
@@ -189,6 +211,14 @@ class PluginAPI(object):
         
     def register_thermostat_setpoint(self, calling_class):
         self.thermostatcallback = calling_class
+        
+    def register_crud(self, calling_class):
+        '''
+        This function allows you to register for CRUD operations.
+        Currently only device creation, update and deletion is supported. 
+        @param calling_class: the class to register
+        '''
+        self.register_crud = True                
             
     def value_update(self, address, values):
         '''

@@ -17,11 +17,14 @@ class Coordinator(object):
     '''
     This is the network coordinator for HouseAgent.
     ''' 
-    def __init__(self, coordinator_name=None, broker_ip='127.0.0.1', broker_port=5672, username='guest', password='guest', vhost='/'):
+    def __init__(self, coordinator_name=None, broker_ip='127.0.0.1', broker_port=5672, username='guest', password='guest', vhost='/',
+                 database=None):
+
+        database.set_coordinator(self)     
         
         self._logging = True
         
-        self.db = Database()
+        self.db = database
         self._plugins = []
         self._request_id = 0
         self._outstanding_requests = {}
@@ -38,7 +41,7 @@ class Coordinator(object):
 
         self.load_plugins()
             
-        self._connect_client()
+        self._connect_client()       
     
     def log(self, msg):
         '''
@@ -288,7 +291,23 @@ class Coordinator(object):
         # create new deferred
         d = defer.Deferred()
         self._outstanding_requests[self._request_id] = d
-        return d     
+        return d
+    
+    def send_crud_update(self, type, action, parameters):
+        '''
+        This function sends an update to the broker after a CRUD operation took place.
+        Plugins can subcribe to these kind of messages to handle within their plugin.
+        @param type: the update type, for example device update have the device update type
+        @param action: the CRUD action, for example update, delete, creation
+        @param parameters: the parameters specified with the CRUD action, for example a device ID
+        '''
+        content = {"type": type,
+                   "action": action, 
+                   "parameters": parameters}
+        
+        msg = Content(json.dumps(content))
+        msg["delivery mode"] = 1
+        self._channel.basic_publish(exchange="houseagent.direct", content=msg, routing_key="crud")
     
     @inlineCallbacks
     def handle_msg(self, msg, queue):

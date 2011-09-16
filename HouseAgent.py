@@ -1,6 +1,7 @@
 from houseagent.core.coordinator import Coordinator
 from houseagent.core.events import EventHandler
 from houseagent.core.web import Web
+from houseagent.core.database import Database
 from twisted.internet import reactor
 from houseagent.plugins.pluginapi import Logging
 import sys
@@ -43,16 +44,19 @@ class MainWrapper():
         self.log = Logging("Main")
         self.log.set_level(self.loglevel)
         
+        self.log.debug("Starting HouseAgent database layer...")
+        database = Database()
+        
         self.log.debug("Starting HouseAgent coordinator...")
         coordinator = Coordinator("houseagent", self.broker_host, self.broker_port, self.broker_user,
-                                  self.broker_pass, self.broker_vhost)
+                                  self.broker_pass, self.broker_vhost, database=database)
         
         self.log.debug("Starting HouseAgent event handler...")
-        event_handler = EventHandler(coordinator)
+        event_handler = EventHandler(coordinator, database)
         
         self.log.debug("Starting HouseAgent web server...")
-        webserver = Web(self.port, coordinator, event_handler)
-        webserver.start()
+        Web(self.port, coordinator, event_handler, database)
+        
         if os.name == 'nt':
             reactor.run(installSignalHandlers=0)
         else: 

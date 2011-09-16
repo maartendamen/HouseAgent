@@ -13,12 +13,18 @@ class Database():
     """
     def __init__(self):
         type = "sqlite"
-        
-        self.update_value_deferred = None
-        self.update_value_value = None
+
+        self.coordinator = None
 
         if type == "sqlite":
             self.dbpool = ConnectionPool("sqlite3", db_location, check_same_thread=False)
+            
+    def set_coordinator(self, coordinator):
+        '''
+        Called after an instance of the coordinator has been created.
+        @param coordinator: an instance of the coordinator class.
+        '''
+        self.coordinator = coordinator
 
     def query_plugin_auth(self, authcode):
         return self.dbpool.runQuery("SELECT authcode, id from plugins WHERE authcode = '%s'" % authcode)
@@ -253,10 +259,43 @@ class Database():
     
     def query_device_types(self):
         return self.dbpool.runQuery("SELECT * from device_types order by name ASC")
-    
-    def add_device(self, name, address, plugin_id, location_id):
-        return self.dbpool.runQuery("INSERT INTO devices (name, address, plugin_id, location_id" \
-                                    ") VALUES (?, ?, ?, ?)", (name, address, plugin_id, location_id))
+       
+    @inlineCallbacks
+    def cb_device_added(self, result, name, address, plugin_id, location_id):
+        '''
+        Callback function that get's called when a device has been deleted from the database.
+        @param result: the callback result
+        @param name: the name of the device
+        @param address: the address of the device
+        @param plugin_id: the plugin id of the plugin
+        @param location_id: the location id associated with the device
+        '''
+        device_id = yield self.dbpool.runQuery("select id from devices order by id desc limit 1")
+        device_id = device_id[0][0]
+        
+        parameters = {"device_id": device_id,
+                      "name": name,
+                      "address": address,
+                      "plugin_id": plugin_id,
+                      "location_id": location_id}
+        self.coordinator.send_crud_update("device", "create", parameters)        
+
+    @inlineCallbacks
+    def cb_device_updated(self, id, result, name, address, plugin_id, location_id):
+        '''
+        Callback function that get's called when a device has been deleted from the database.
+        @param result: the callback result
+        @param name: the name of the device
+        @param address: the address of the device
+        @param plugin_id: the plugin id of the plugin
+        @param location_id: the location id associated with the device
+        '''
+        parameters = {"device_id": id,
+                      "name": name,
+                      "address": address,
+                      "plugin_id": plugin_id,
+                      "location_id": location_id}
+        self.coordinator.send_crud_update("device", "update", parameters)    
 
     def save_device(self, name, address, plugin_id, location_id, id):
         '''
@@ -269,13 +308,21 @@ class Database():
         '''
         if not id:
             return self.dbpool.runQuery("INSERT INTO devices (name, address, plugin_id, location_id" \
-                                        ") VALUES (?, ?, ?, ?)", (name, address, plugin_id, location_id))
+                                        ") VALUES (?, ?, ?, ?)", (name, address, plugin_id, location_id)).addCallback(self.cb_device_added, name, address, plugin_id, location_id)
         else:
             return self.dbpool.runQuery("UPDATE devices SET name=?, address=?, plugin_id=?, location_id=? WHERE id=?", 
-                                        [name, address, plugin_id, location_id, id])
+                                        [name, address, plugin_id, location_id, id]).addCallback(self.cb_device_updated, id, name, address, plugin_id, location_id)
+
+    def cb_device_deleted(self, result, id):
+        '''
+        Callback function that get's called when a device has been deleted from the database.
+        @param id: the id of the device
+        '''
+        parameters = {"device_id": id}
+        self.coordinator.send_crud_update("device", "delete", parameters)
 
     def del_device(self, id):
-        return self.dbpool.runQuery("DELETE FROM devices WHERE id=?", [id])
+        return self.dbpool.runQuery("DELETE FROM devices WHERE id=?", [id]).addCallback(self.cb_device_deleted, id)
 
     def del_location(self, id):
         return self.dbpool.runQuery("DELETE FROM locations WHERE id=?", [id])
