@@ -261,41 +261,34 @@ class Database():
         return self.dbpool.runQuery("SELECT * from device_types order by name ASC")
        
     @inlineCallbacks
-    def cb_device_added(self, result, name, address, plugin_id, location_id):
+    def cb_device_crud(self, result, action, id=None, plugin=None, address=None, name=None, location=None):
         '''
-        Callback function that get's called when a device has been deleted from the database.
-        @param result: the callback result
-        @param name: the name of the device
+        Callback function that get's called when a device has been created, updated or deleted in, to or from the database.
+        @param result: the result of the action
+        @param action: the action initiating the callback being create, update or delete
+        @param plugin: the uuid of the plugin owning the device
         @param address: the address of the device
-        @param plugin_id: the plugin id of the plugin
-        @param location_id: the location id associated with the device
+        @param name: the name of the device
+        @param location: the name of the location associated with the device
         '''
-        device_id = yield self.dbpool.runQuery("select id from devices order by id desc limit 1")
-        device_id = device_id[0][0]
-        
-        parameters = {"device_id": device_id,
-                      "name": name,
-                      "address": address,
-                      "plugin_id": plugin_id,
-                      "location_id": location_id}
-        self.coordinator.send_crud_update("device", "create", parameters)        
+        if action == "create":
+            parms = yield self.dbpool.runQuery("SELECT plugins.authcode, devices.address, devices.name, locations.name FROM devices, plugins, locations WHERE devices.plugin_id = plugins.id AND devices.location_id = locations.id ORDER BY devices.id DESC LIMIT 1")
+            
+        if action == "update":
+            parms = yield self.dbpool.runQuery("SELECT plugins.authcode, devices.address, devices.name, locations.name FROM devices, plugins, locations WHERE devices.plugin_id = plugins.id AND devices.location_id = locations.id AND devices.id=?", [id])
 
-    @inlineCallbacks
-    def cb_device_updated(self, id, result, name, address, plugin_id, location_id):
-        '''
-        Callback function that get's called when a device has been deleted from the database.
-        @param result: the callback result
-        @param name: the name of the device
-        @param address: the address of the device
-        @param plugin_id: the plugin id of the plugin
-        @param location_id: the location id associated with the device
-        '''
-        parameters = {"device_id": id,
-                      "name": name,
+        if action != "delete":
+            plugin = parms[0][0]
+            address = parms[0][1]
+            name = parms[0][2]
+            location = parms[0][3]
+            
+        parameters = {"plugin": plugin, 
                       "address": address,
-                      "plugin_id": plugin_id,
-                      "location_id": location_id}
-        self.coordinator.send_crud_update("device", "update", parameters)    
+                      "name": name,
+                      "location": location}
+        
+        self.coordinator.send_crud_update("device", action, parameters)    
 
     def save_device(self, name, address, plugin_id, location_id, id):
         '''
@@ -306,23 +299,21 @@ class Database():
         @param location_id: the location_id of the associated location
         @param id: the id of the device (in case this is an update)
         '''
+        
         if not id:
-            return self.dbpool.runQuery("INSERT INTO devices (name, address, plugin_id, location_id" \
-                                        ") VALUES (?, ?, ?, ?)", (name, address, plugin_id, location_id)).addCallback(self.cb_device_added, name, address, plugin_id, location_id)
+            return self.dbpool.runQuery("INSERT INTO devices (name, address, plugin_id, location_id) VALUES (?, ?, ?, ?)", \
+                                        (name, address, plugin_id, location_id)).addCallback(self.cb_device_crud, "create")
         else:
-            return self.dbpool.runQuery("UPDATE devices SET name=?, address=?, plugin_id=?, location_id=? WHERE id=?", 
-                                        [name, address, plugin_id, location_id, id]).addCallback(self.cb_device_updated, id, name, address, plugin_id, location_id)
-
-    def cb_device_deleted(self, result, id):
-        '''
-        Callback function that get's called when a device has been deleted from the database.
-        @param id: the id of the device
-        '''
-        parameters = {"device_id": id}
-        self.coordinator.send_crud_update("device", "delete", parameters)
+            return self.dbpool.runQuery("UPDATE devices SET name=?, address=?, plugin_id=?, location_id=? WHERE id=?", \
+                                        (name, address, plugin_id, location_id, id)).addCallback(self.cb_device_crud, "update", id)
 
     def del_device(self, id):
-        return self.dbpool.runQuery("DELETE FROM devices WHERE id=?", [id]).addCallback(self.cb_device_deleted, id)
+        
+        def delete(result, id):
+            self.dbpool.runQuery("DELETE FROM devices WHERE id=?", [id]).addCallback(self.cb_device_crud, "delete", id, result[0][0], result[0][1], result[0][2], result[0][3])
+        
+        return self.dbpool.runQuery("SELECT plugins.authcode, devices.address, devices.name, locations.name FROM plugins, devices, locations " +
+                                    "WHERE devices.plugin_id = plugins.id AND devices.location_id = locations.id AND devices.id=?", [id]).addCallback(delete, id)
 
     def del_location(self, id):
         return self.dbpool.runQuery("DELETE FROM locations WHERE id=?", [id])
