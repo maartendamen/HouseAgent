@@ -408,7 +408,7 @@ class Database():
         It returns generic event information
         @param id: the id of the event
         '''        
-        from houseagent.core.events import Trigger
+        from houseagent.core.events import Trigger, Condition
         
         event = {}
         event_info = yield self.dbpool.runQuery("SELECT id, name, enabled from events where id=? LIMIT 1", [id])
@@ -426,14 +426,16 @@ class Database():
             if param[0] == "cron":
                 t.cron = param[1]
             elif param[0] == "current_value_id":
-                t.current_value_id = param[1]
+                t.current_value_id = param[1]     
+                device = yield self.dbpool.runQuery('SELECT devices.id FROM devices INNER JOIN current_values ON (current_values.device_id = devices.id) WHERE current_values.id = ? LIMIT 1', [param[1]])
+                t.device = device[0][0]
             elif param[0] == "condition":
-                t.condition = param[1]
+                t.conditions = param[1]
             elif param[0] == "condition_value":
                 t.condition_value = param[1]
                 
         event['trigger'] = t
-
+        
         returnValue(event)
 
 class DataHistory():

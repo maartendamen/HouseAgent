@@ -337,6 +337,8 @@ $(document).ready(function()
 	     }         	
      });
      
+     % if edit == True:
+     
      // Edit area
      if ("${edit}" == "True") {
         $("#event_name").val("${event['name']}");
@@ -354,8 +356,25 @@ $(document).ready(function()
             $(".value_change").show();
             $("#value_change_conditions").val('${event['trigger'].condition}');
             $("#value_change_value").val('${event['trigger'].condition_value}');
+            $("#value_change_devices").val(${event['trigger'].device});
+            
+            $("#value_change_values").ajaxAddOption("/event_value_by_id", {"deviceid" : ${event['trigger'].device}}, false, function(data){
+                $("#value_change_values").val('${event['trigger'].current_value_id}');    
+            });
+            $("#value_change_values").addOption("default", "Please select a value...");
+            
         }
-     }
+        
+        // Conditions
+        if (${event['trigger'].conditions} == true) {
+            $('input:radio[name=conditions_radio]')[0].checked = true;
+        } else if (${event['trigger'].conditions} == false) {
+            $('input:radio[name=conditions_radio]')[1].checked = true;
+        }
+     }  
+     
+     % endif
+
 });
 </script>
 
