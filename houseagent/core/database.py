@@ -13,12 +13,18 @@ class Database():
     """
     def __init__(self):
         type = "sqlite"
-        
-        self.update_value_deferred = None
-        self.update_value_value = None
+
+        self.coordinator = None
 
         if type == "sqlite":
             self.dbpool = ConnectionPool("sqlite3", db_location, check_same_thread=False)
+            
+    def set_coordinator(self, coordinator):
+        '''
+        Called after an instance of the coordinator has been created.
+        @param coordinator: an instance of the coordinator class.
+        '''
+        self.coordinator = coordinator
 
     def query_plugin_auth(self, authcode):
         return self.dbpool.runQuery("SELECT authcode, id from plugins WHERE authcode = '%s'" % authcode)
@@ -211,22 +217,22 @@ class Database():
             updatetime = datetime.datetime.fromtimestamp(time).isoformat(' ').split('.')[0]
             
         # Query device first
-        device_id = yield self.dbpool.runQuery("select id from devices where address=? AND plugin_id=?", (address, int(pluginid)) )
+        device_id = yield self.dbpool.runQuery("select devices.id from devices INNER JOIN plugins ON (devices.plugin_id = plugins.id) WHERE devices.address = ? and plugins.authcode = ?", (address, pluginid) )
+
         try:
             device_id = device_id[0][0]
         except IndexError:
             returnValue('')
         
-        #select current_values.id, current_values.name, current_values.history_heartbeat, history_types.name from current_values LEFT OUTER JOIN history_types ON (current_values.history_type_id = history_types.id)
-        current_value = yield self.dbpool.runQuery("select current_values.id, current_values.name, current_values.history_heartbeat, history_types.name from current_values LEFT OUTER JOIN history_types ON (current_values.history_type_id = history_types.id) where current_values.name=? AND current_values.device_id=?", (name, device_id))
+        current_value = yield self.dbpool.runQuery("select id, name, history from current_values where name=? AND device_id=?", (name, device_id))
     
         value_id = None
     
         if len(current_value) > 0:
             value_id = current_value[0][0]
             
-            if current_value[0][3] != None:
-                DataHistory("data", current_value[0][0], value, current_value[0][3].upper(), current_value[0][2], int(time))
+            if current_value[0][2] != None:
+                DataHistory("data", current_value[0][0], value, "GAUGE", 60, int(time))
                 
             yield self.dbpool.runQuery("UPDATE current_values SET value=?, lastupdate=? WHERE id=?", (value, updatetime, value_id))
         else:
@@ -253,10 +259,36 @@ class Database():
     
     def query_device_types(self):
         return self.dbpool.runQuery("SELECT * from device_types order by name ASC")
-    
-    def add_device(self, name, address, plugin_id, location_id):
-        return self.dbpool.runQuery("INSERT INTO devices (name, address, plugin_id, location_id" \
-                                    ") VALUES (?, ?, ?, ?)", (name, address, plugin_id, location_id))
+       
+    @inlineCallbacks
+    def cb_device_crud(self, result, action, id=None, plugin=None, address=None, name=None, location=None):
+        '''
+        Callback function that get's called when a device has been created, updated or deleted in, to or from the database.
+        @param result: the result of the action
+        @param action: the action initiating the callback being create, update or delete
+        @param plugin: the uuid of the plugin owning the device
+        @param address: the address of the device
+        @param name: the name of the device
+        @param location: the name of the location associated with the device
+        '''
+        if action == "create":
+            parms = yield self.dbpool.runQuery("SELECT plugins.authcode, devices.address, devices.name, locations.name FROM devices, plugins, locations WHERE devices.plugin_id = plugins.id AND devices.location_id = locations.id ORDER BY devices.id DESC LIMIT 1")
+            
+        if action == "update":
+            parms = yield self.dbpool.runQuery("SELECT plugins.authcode, devices.address, devices.name, locations.name FROM devices, plugins, locations WHERE devices.plugin_id = plugins.id AND devices.location_id = locations.id AND devices.id=?", [id])
+
+        if action != "delete":
+            plugin = parms[0][0]
+            address = parms[0][1]
+            name = parms[0][2]
+            location = parms[0][3]
+            
+        parameters = {"plugin": plugin, 
+                      "address": address,
+                      "name": name,
+                      "location": location}
+        
+        self.coordinator.send_crud_update("device", action, parameters)    
 
     def save_device(self, name, address, plugin_id, location_id, id):
         '''
@@ -267,15 +299,21 @@ class Database():
         @param location_id: the location_id of the associated location
         @param id: the id of the device (in case this is an update)
         '''
+        
         if not id:
-            return self.dbpool.runQuery("INSERT INTO devices (name, address, plugin_id, location_id" \
-                                        ") VALUES (?, ?, ?, ?)", (name, address, plugin_id, location_id))
+            return self.dbpool.runQuery("INSERT INTO devices (name, address, plugin_id, location_id) VALUES (?, ?, ?, ?)", \
+                                        (name, address, plugin_id, location_id)).addCallback(self.cb_device_crud, "create")
         else:
-            return self.dbpool.runQuery("UPDATE devices SET name=?, address=?, plugin_id=?, location_id=? WHERE id=?", 
-                                        [name, address, plugin_id, location_id, id])
+            return self.dbpool.runQuery("UPDATE devices SET name=?, address=?, plugin_id=?, location_id=? WHERE id=?", \
+                                        (name, address, plugin_id, location_id, id)).addCallback(self.cb_device_crud, "update", id)
 
     def del_device(self, id):
-        return self.dbpool.runQuery("DELETE FROM devices WHERE id=?", [id])
+        
+        def delete(result, id):
+            self.dbpool.runQuery("DELETE FROM devices WHERE id=?", [id]).addCallback(self.cb_device_crud, "delete", id, result[0][0], result[0][1], result[0][2], result[0][3])
+        
+        return self.dbpool.runQuery("SELECT plugins.authcode, devices.address, devices.name, locations.name FROM plugins, devices, locations " +
+                                    "WHERE devices.plugin_id = plugins.id AND devices.location_id = locations.id AND devices.id=?", [id]).addCallback(delete, id)
 
     def del_location(self, id):
         return self.dbpool.runQuery("DELETE FROM locations WHERE id=?", [id])

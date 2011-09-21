@@ -1,13 +1,12 @@
-from houseagent.core import database
 from twisted.internet.defer import inlineCallbacks, returnValue
 from twisted.scheduling.cron import CronSchedule
 from twisted.scheduling.task import ScheduledCall
 
-db = database.Database()
-
 class EventHandler(object):
     
-    def __init__(self, coordinator):
+    def __init__(self, coordinator, database):
+        
+        self.db = database
         
         self._absolute_time_schedule_calls = []
         self._triggers = []
@@ -35,13 +34,13 @@ class EventHandler(object):
             
         self._absolute_time_schedule_calls = []
         
-        triggers = yield db.query_triggers()
+        triggers = yield self.db.query_triggers()
         
         for trigger in triggers:   
             t = Trigger(trigger[1], trigger[2], trigger[3])
             
             # get trigger parameters
-            trigger_parameters = yield db.query_trigger_parameters(trigger[0])
+            trigger_parameters = yield self.db.query_trigger_parameters(trigger[0])
             
             for param in trigger_parameters:
                 if param[0] == "cron":
@@ -71,12 +70,12 @@ class EventHandler(object):
         ''' 
         This function loads all the actions from the database.
         '''              
-        actions = yield db.query_actions()
+        actions = yield self.db.query_actions()
 
         for action in actions:
             a = Action(action[1], action[2])
             
-            action_parameters = yield db.query_action_parameters(action[0])
+            action_parameters = yield self.db.query_action_parameters(action[0])
             for param in action_parameters:
                 if param[0] == "device":
                     a.device = param[1]
@@ -87,12 +86,12 @@ class EventHandler(object):
                 
             if action[1] == "Device action":
                 # fetch extra device properties
-                device_properties = yield db.query_device_routing_by_id(a.device)
+                device_properties = yield self.db.query_device_routing_by_id(a.device)
                 a.address = device_properties[0][0]
                 a.plugin_id = device_properties[0][1]
                 
                 # fetch control_type
-                control_type = yield db.query_controltypename(a.control_value)
+                control_type = yield self.db.query_controltypename(a.control_value)
                 a.control_type = control_type[0][0]
             
             self._actions.append(a)
@@ -102,12 +101,12 @@ class EventHandler(object):
         ''' 
         This function loads conditions from the database.
         '''
-        conditions = yield db.query_conditions()
+        conditions = yield self.db.query_conditions()
         
         for condition in conditions:
             c = Condition(condition[1], condition[2])
             
-            condition_parameters = yield db.query_condition_parameters(condition[0])
+            condition_parameters = yield self.db.query_condition_parameters(condition[0])
             
             for param in condition_parameters:
                 if param[0] == "condition":
@@ -213,7 +212,7 @@ class EventHandler(object):
                 if c.type == "Device value":
                     
                     # query current value
-                    actual_value = yield db.query_value_by_valueid(c.current_values_id)
+                    actual_value = yield self.db.query_value_by_valueid(c.current_values_id)
                     
                     # check conditions, note that these are actually checked reversed...
                     if c.condition == "eq":

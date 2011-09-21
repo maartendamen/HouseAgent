@@ -1,8 +1,9 @@
 from houseagent.core.coordinator import Coordinator
 from houseagent.core.events import EventHandler
 from houseagent.core.web import Web
+from houseagent.core.database import Database
 from twisted.internet import reactor
-from twisted.python import log
+from houseagent.plugins.pluginapi import Logging
 import sys
 import os
 import ConfigParser
@@ -26,7 +27,7 @@ class MainWrapper():
             config = ConfigParser.RawConfigParser()
             config.read(os.path.join(self.config_path, 'HouseAgent.conf'))
             self.port = config.getint('webserver', 'port')
-            self.logging = config.getboolean('general', 'logging')
+            self.loglevel = config.get('general', 'loglevel')
             
             # Get broker information (RabbitMQ)
             self.broker_host = config.get("broker", "host")
@@ -38,22 +39,24 @@ class MainWrapper():
             print "Configuration file not found! Make sure the configuration file is placed in the proper directory. For *nix: /etc/HouseAgent/, for Windows C:\Programdata\HouseAgent"
             sys.exit()
     
-    def start(self):
-              
-        if self.logging:
-            log.startLogging(sys.stdout)
-            log.startLogging(open('main.log', 'w'))
+    def start(self):     
+     
+        self.log = Logging("Main")
+        self.log.set_level(self.loglevel)
         
-        log.msg("Starting HouseAgent coordinator...")
+        self.log.debug("Starting HouseAgent database layer...")
+        database = Database()
+        
+        self.log.debug("Starting HouseAgent coordinator...")
         coordinator = Coordinator("houseagent", self.broker_host, self.broker_port, self.broker_user,
-                                  self.broker_pass, self.broker_vhost)
+                                  self.broker_pass, self.broker_vhost, database=database)
         
-        log.msg("Starting HouseAgent event handler...")
-        event_handler = EventHandler(coordinator)
+        self.log.debug("Starting HouseAgent event handler...")
+        event_handler = EventHandler(coordinator, database)
         
-        log.msg("Starting HouseAgent web server...")
-        webserver = Web(self.port, coordinator, event_handler)
-        webserver.start()
+        self.log.debug("Starting HouseAgent web server...")
+        Web(self.port, coordinator, event_handler, database)
+        
         if os.name == 'nt':
             reactor.run(installSignalHandlers=0)
         else: 

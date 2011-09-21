@@ -27,7 +27,7 @@ else:
 template_dir = os.path.join(os.path.dirname(__file__), 'templates')
 
 """ Template plugin directory """
-template_plugin_dir = os.path.join(template_dir, 'plugins')
+template_plugin_dir = os.path.join(os.path.dirname(__file__), 'plugins')
 
 """ Logging directory """
 if os.name == 'nt':
