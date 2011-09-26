@@ -4,21 +4,94 @@ from twisted.internet import defer
 from twisted.internet.defer import inlineCallbacks, returnValue
 import datetime
 import time
-import os.path
+import os.path, sys
 from houseagent import db_location
+import shutil
 
 class Database():
     """
     HouseAgent database interaction.
     """
-    def __init__(self):
+    def __init__(self, log):
+        self.log = log
+
         type = "sqlite"
 
         self.coordinator = None
 
+        # Note: cp_max=1 is required otherwise undefined behaviour could occur when using yield icw subsequent
+        # runQuery or runOperation statements
         if type == "sqlite":
-            self.dbpool = ConnectionPool("sqlite3", db_location, check_same_thread=False)
+            self.dbpool = ConnectionPool("sqlite3", db_location, check_same_thread=False, cp_max=1)
+       
+        # Check database schema version and upgrade when required
+        self.updatedb('0.1')
+             
+    def updatedb(self, dbversion):
+        '''
+        Perform a database schema update when required. 
+        '''
+        # Note: runInteraction runs all queries defined within the specified function as part of a transaction.
+        return self.dbpool.runInteraction(self._updatedb, dbversion)
+
+    def _updatedb(self, txn, dbversion):
+        '''
+        Check whether a database schema update is required and act accordingly.
+        '''
+        # Note: Although all queries are run as part of a transaction, a create or drop table statement result in an implicit commit
+
+        # Query the version of the current schema
+        try:
+            result = txn.execute("SELECT parm_value FROM common WHERE parm = 'schema_version'").fetchall()
+        except:
+            result = None
             
+        if result:
+            version = result[0][0]
+        else:
+            version = '0.0'
+
+        if float(version) > float(dbversion):
+            self.log.error("ERROR: The current database schema (%s) is not supported by this version of HouseAgent" % version)
+            # FIXME: NOW WE SHOULD EXIT FROM HOUSEAGENT!!!!!
+            return
+        
+        elif float(version) == float(dbversion):
+            self.log.debug("Database schema is up to date")
+            return
+        
+        else:
+            self.log.info("Database schema will be updated from %s to %s:" % (version, dbversion))
+
+            # Before we start manipulating the database schema, first make a backup copy of the database
+            try:
+                shutil.copy(db_location, db_location + datetime.datetime.strftime(datetime.datetime.now(), ".%y%m%d-%H%M%S"))
+            except:
+                self.log.error("Cannot make a backup copy of the database (%s)", sys.exc_info()[1])
+                return
+
+            try:
+                # Create common table if it does not already exist
+                txn.execute("CREATE TABLE IF NOT EXISTS common (parm VARCHAR(16) PRIMARY KEY, parm_value VARCHAR(24) NOT NULL)")
+            
+                # Schema version did not exist in database, insert it
+                txn.execute("INSERT INTO common (parm, parm_value) VALUES ('schema_version', ?)", [dbversion])
+
+                # Set primary key of the devices table on address + plugin_id to prevent adding duplicate devices
+                txn.execute("CREATE TEMPORARY TABLE devices_backup(id INTEGER PRIMARY KEY, name VARCHAR(45), address VARCHAR(45) NOT NULL, plugin_id INTEGER NOT NULL, location_id INTEGER)")
+                txn.execute("INSERT INTO devices_backup SELECT id, name, address, plugin_id, location_id FROM devices")
+                txn.execute("DROP TABLE devices")
+                txn.execute("CREATE TABLE devices(id INTEGER PRIMARY KEY, name VARCHAR(45), address VARCHAR(45) NOT NULL, plugin_id INTEGER, location_id INTEGER)")
+                txn.execute("CREATE UNIQUE INDEX device_address ON devices (address, plugin_id)")
+                txn.execute("INSERT INTO devices SELECT id, name, address, plugin_id, location_id FROM devices_backup")
+                txn.execute("DROP TABLE devices_backup")
+
+                # Update schema version
+                # txn.execute("UPDATE common SET parm_value = ? WHERE parm = 'schema_version'" % [dbversion])
+                self.log.info("Successfully upgraded database schema")
+            except:
+                self.log.error("Database schema upgrade failed (%s)" % sys.exc_info()[1])
+
     def set_coordinator(self, coordinator):
         '''
         Called after an instance of the coordinator has been created.
