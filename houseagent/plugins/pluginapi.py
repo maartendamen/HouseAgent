@@ -1,10 +1,9 @@
 import os
-from twisted.internet.error import ReactorAlreadyInstalledError
 if os.name == "nt":
     from twisted.internet import win32eventreactor
     try:
         win32eventreactor.install()
-    except ReactorAlreadyInstalledError:
+    except:
         pass        
 from twisted.internet.defer import inlineCallbacks
 from twisted.internet.error import ConnectionRefusedError
@@ -42,12 +41,25 @@ class PluginAPI(object):
         self._tag = 'mq%d' % id(self)
        
         self.crud = False
-       
         self._connect_client()
+        
+        # Handle callbacks
+        self.custom_callback = None
+        self.poweron_callback = None
+        self.poweroff_callback = None
+        self.thermostat_setpoint_callback = None
         
         for callback in callbacks:
             if callback == "crud":
-                self.crud_callback = callbacks[callback] 
+                self.crud_callback = callbacks[callback]
+            elif callback == 'poweron':
+                self.poweron_callback = callbacks[callback]
+            elif callback == 'poweroff':
+                self.poweroff_callback = callbacks[callback]
+            elif callback == 'custom':
+                self.custom_callback = callbacks[callback]
+            elif callback == 'thermostat_setpoint':
+                self.thermostat_setpoint_callback = callbacks[callback]
                 
     @inlineCallbacks
     def _connect_client(self):
@@ -135,7 +147,22 @@ class PluginAPI(object):
 
     def setup_error(self, failure):
         print 'ERROR: failed to create RPC Receiver: %s' % failure
-    
+        
+    def call_callback(self, function, msg, *args):
+
+        def cb_reply(result):
+            print "Reply=", result
+            content = Content(json.dumps(result))
+            content.properties['correlation id'] = msg.content.properties['correlation id']
+            self._channel.basic_publish(exchange="", content=content, routing_key="houseagent")
+            
+        def cb_failure(result):
+            content = Content(json.dumps(result))
+            content.properties['correlation id'] = msg.content.properties['correlation id']
+            self._channel.basic_publish(exchange="", content=content, routing_key="houseagent")
+        
+        function(*args).addCallbacks(cb_reply, cb_failure)
+       
     def handle_msg(self, msg, queue):
         
         d = queue.get()
@@ -153,36 +180,48 @@ class PluginAPI(object):
                 print "received custom request", request
                 
                 if request["type"] == "custom":
-                    result = self.customcallback.on_custom(request["action"], request["parameters"])
-                    
-                    content = Content(json.dumps(result))
-                    content.properties['correlation id'] = msg.content.properties['correlation id']
-                    self._channel.basic_publish(exchange="", content=content, routing_key="houseagent")
+                    if self.custom_callback:
+                        self.call_callback(self.custom_callback, msg, request["action"], request["parameters"])
+                    else:
+                        result = self.customcallback.on_custom(request["action"], request["parameters"])
+                        
+                        content = Content(json.dumps(result))
+                        content.properties['correlation id'] = msg.content.properties['correlation id']
+                        self._channel.basic_publish(exchange="", content=content, routing_key="houseagent")
+                        
                 elif request["type"] == "poweron":
-                    print "POWERON"
-                    result = self.poweroncallback.on_poweron(request["address"])
-                    
-                    content = Content(json.dumps(result))
-                    content.properties['correlation id'] = msg.content.properties['correlation id']
-                    self._channel.basic_publish(exchange="", content=content, routing_key="houseagent")      
+                    if self.poweron_callback:
+                        self.call_callback(self.poweron_callback, msg, request['address'])
+                    else:
+                        result = self.poweroncallback.on_poweron(request["address"])
+                        
+                        content = Content(json.dumps(result))
+                        content.properties['correlation id'] = msg.content.properties['correlation id']
+                        self._channel.basic_publish(exchange="", content=content, routing_key="houseagent")      
                 elif request["type"] == "poweroff":
-                    result = self.poweroncallback.on_poweroff(request["address"])
-                    
-                    content = Content(json.dumps(result))
-                    content.properties['correlation id'] = msg.content.properties['correlation id']
-                    self._channel.basic_publish(exchange="", content=content, routing_key="houseagent")         
+                    if self.poweroff_callback:
+                        self.call_callback(self.poweroff_callback, msg, request['address'])
+                    else:                        
+                        result = self.poweroncallback.on_poweroff(request["address"])
+                        
+                        content = Content(json.dumps(result))
+                        content.properties['correlation id'] = msg.content.properties['correlation id']
+                        self._channel.basic_publish(exchange="", content=content, routing_key="houseagent")         
                 elif request["type"] == "dim":
                     result = self.dimcallback.on_dim(request["address"], request["level"])
                     
                     content = Content(json.dumps(result))
                     content.properties['correlation id'] = msg.content.properties['correlation id']
                     self._channel.basic_publish(exchange="", content=content, routing_key="houseagent")         
-                elif request["type"] == "thermostat_setpoint":
-                    result = self.thermostatcallback.on_thermostat_setpoint(request['address'], request['temperature'])
-                    
-                    content = Content(json.dumps(result))
-                    content.properties['correlation id'] = msg.content.properties['correlation id']
-                    self._channel.basic_publish(exchange="", content=content, routing_key="houseagent")         
+                elif request["type"] == "thermostat_setpoint":    
+                    if self.thermostat_setpoint_callback:
+                        self.call_callback(self.thermostat_setpoint_callback, msg, request['address'], request['temperature'])
+                    else:
+                        result = self.thermostatcallback.on_thermostat_setpoint(request['address'], request['temperature'])
+                        
+                        content = Content(json.dumps(result))
+                        content.properties['correlation id'] = msg.content.properties['correlation id']
+                        self._channel.basic_publish(exchange="", content=content, routing_key="houseagent")         
             
             if message_type == 'crud':
                 # Handle CRUD callback
