@@ -1,9 +1,9 @@
 import os
-import win32serviceutil
-import win32event
-import win32service
-import win32evtlogutil
 if os.name == "nt":
+    import win32serviceutil
+    import win32event
+    import win32service
+    import win32evtlogutil
     from twisted.internet import win32eventreactor
     try:
         win32eventreactor.install()
@@ -360,70 +360,71 @@ class Logging():
         @param message: the message to log.
         '''        
         twisted_log.msg(message, logLevel=logging.DEBUG)
+
+if os.name == "nt":        
+    class WindowsService(win32serviceutil.ServiceFramework):
+        '''
+        This class is a Windows Service handler, it's common to run
+        long running tasks in the background on a Windows system, as such we
+        use Windows services for HouseAgent.
         
-class WindowsService(win32serviceutil.ServiceFramework):
-    '''
-    This class is a Windows Service handler, it's common to run
-    long running tasks in the background on a Windows system, as such we
-    use Windows services for HouseAgent.
+        Plugins can ovveride this class in order to provide a Windows service interface for their plugins.
+        '''        
+        _svc_name_ = "not set"
+        _svc_display_name_ = "not set"
+        
+        def __init__(self, args):
+            win32serviceutil.ServiceFramework.__init__(self,args)
+            self.hWaitStop=win32event.CreateEvent(None, 0, 0, None)
+            self.isAlive=True
     
-    Plugins can ovveride this class in order to provide a Windows service interface for their plugins.
-    '''        
-    _svc_name_ = "not set"
-    _svc_display_name_ = "not set"
+        def SvcStop(self):
+            self.ReportServiceStatus(win32service.SERVICE_STOP_PENDING)
+            reactor.stop()
+            win32event.SetEvent(self.hWaitStop)
+            self.isAlive=False
     
-    def __init__(self, args):
-        win32serviceutil.ServiceFramework.__init__(self,args)
-        self.hWaitStop=win32event.CreateEvent(None, 0, 0, None)
-        self.isAlive=True
-
-    def SvcStop(self):
-        self.ReportServiceStatus(win32service.SERVICE_STOP_PENDING)
-        reactor.stop()
-        win32event.SetEvent(self.hWaitStop)
-        self.isAlive=False
-
-    def start(self):
-        pass
-
-    def SvcDoRun(self):
-        import servicemanager
-               
-        win32evtlogutil.ReportEvent(self._svc_name_,servicemanager.PYS_SERVICE_STARTED,0,
-        servicemanager.EVENTLOG_INFORMATION_TYPE,(self._svc_name_, ''))
-
-        self.timeout=1000  # In milliseconds (update every second)
-        self.start()
-
-        # Fix working directory, Python Windows service bug
-        current_dir = os.path.dirname(sys.executable)
-        os.chdir(current_dir)
-
-        win32event.WaitForSingleObject(self.hWaitStop, win32event.INFINITE) 
-
-        win32evtlogutil.ReportEvent(self._svc_name_,servicemanager.PYS_SERVICE_STOPPED,0,
-                                    servicemanager.EVENTLOG_INFORMATION_TYPE,(self._svc_name_, ''))
-
-        self.ReportServiceStatus(win32service.SERVICE_STOPPED)
-
-        return
+        def start(self):
+            pass
     
-def handle_windowsservice(serviceclass):
-    '''
-    This function handles a Windows service class.
-    It displays the appropriate command line help, and validaes command line arguements.
-    @param serviceclass: a reference to a overridden WindowsService class.
-    '''
-    if len(sys.argv) == 1:
-        try:
-            import servicemanager, winerror
-            evtsrc_dll = os.path.abspath(servicemanager.__file__)
-            servicemanager.PrepareToHostSingle(serviceclass)
-            servicemanager.Initialize(serviceclass.__name__, evtsrc_dll)
-            servicemanager.StartServiceCtrlDispatcher()
-
-        except win32service.error, details:
-            if details[0] == winerror.ERROR_FAILED_SERVICE_CONTROLLER_CONNECT:
-                win32serviceutil.usage()
-    else:    
-        win32serviceutil.HandleCommandLine(serviceclass)
+        def SvcDoRun(self):
+            import servicemanager
+                   
+            win32evtlogutil.ReportEvent(self._svc_name_,servicemanager.PYS_SERVICE_STARTED,0,
+            servicemanager.EVENTLOG_INFORMATION_TYPE,(self._svc_name_, ''))
+    
+            self.timeout=1000  # In milliseconds (update every second)
+            self.start()
+    
+            # Fix working directory, Python Windows service bug
+            current_dir = os.path.dirname(sys.executable)
+            os.chdir(current_dir)
+    
+            win32event.WaitForSingleObject(self.hWaitStop, win32event.INFINITE) 
+    
+            win32evtlogutil.ReportEvent(self._svc_name_,servicemanager.PYS_SERVICE_STOPPED,0,
+                                        servicemanager.EVENTLOG_INFORMATION_TYPE,(self._svc_name_, ''))
+    
+            self.ReportServiceStatus(win32service.SERVICE_STOPPED)
+    
+            return
+        
+    def handle_windowsservice(serviceclass):
+        '''
+        This function handles a Windows service class.
+        It displays the appropriate command line help, and validaes command line arguements.
+        @param serviceclass: a reference to a overridden WindowsService class.
+        '''
+        if len(sys.argv) == 1:
+            try:
+                import servicemanager, winerror
+                evtsrc_dll = os.path.abspath(servicemanager.__file__)
+                servicemanager.PrepareToHostSingle(serviceclass)
+                servicemanager.Initialize(serviceclass.__name__, evtsrc_dll)
+                servicemanager.StartServiceCtrlDispatcher()
+    
+            except win32service.error, details:
+                if details[0] == winerror.ERROR_FAILED_SERVICE_CONTROLLER_CONNECT:
+                    win32serviceutil.usage()
+        else:    
+            win32serviceutil.HandleCommandLine(serviceclass)
