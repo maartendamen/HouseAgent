@@ -215,23 +215,26 @@ class Database():
             updatetime = datetime.datetime.now().isoformat(' ').split('.')[0]
         else:
             updatetime = datetime.datetime.fromtimestamp(time).isoformat(' ').split('.')[0]
-            
+        
         # Query device first
-        device_id = yield self.dbpool.runQuery("select devices.id from devices INNER JOIN plugins ON (devices.plugin_id = plugins.id) WHERE devices.address = ? and plugins.authcode = ?", (address, pluginid) )
+        device_id = yield self.dbpool.runQuery('select id from devices WHERE plugin_id = ? and address = ? LIMIT 1', (pluginid, address) )
 
         try:
             device_id = device_id[0][0]
-        except IndexError:
-            returnValue('')
+        except:
+            returnValue('') # device does not exist
         
-        current_value = yield self.dbpool.runQuery("select id, name, history from current_values where name=? AND device_id=?", (name, device_id))
+        current_value = yield self.dbpool.runQuery("select id, name, history from current_values where name=? AND device_id=? LIMIT 1", (name, device_id))
     
-        value_id = None
+        try:
+            value_id = current_value[0][0]
+        except:
+            value_id = None
     
-        if len(current_value) > 0:
+        if value_id:
             value_id = current_value[0][0]
             
-            if current_value[0][2] != None:
+            if current_value[0][2] not in (0, None):
                 DataHistory("data", current_value[0][0], value, "GAUGE", 60, int(time))
                 
             yield self.dbpool.runQuery("UPDATE current_values SET value=?, lastupdate=? WHERE id=?", (value, updatetime, value_id))
@@ -290,7 +293,7 @@ class Database():
         
         self.coordinator.send_crud_update("device", action, parameters)    
 
-    def save_device(self, name, address, plugin_id, location_id, id):
+    def save_device(self, name, address, plugin_id, location_id, id=None):
         '''
         This functions saves a device in the HouseAgent database.
         @param name: the name of the device
