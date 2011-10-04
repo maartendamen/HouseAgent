@@ -53,8 +53,8 @@ class Database():
 
         if float(version) > float(dbversion):
             self.log.error("ERROR: The current database schema (%s) is not supported by this version of HouseAgent" % version)
-            # FIXME: NOW WE SHOULD EXIT FROM HOUSEAGENT!!!!!
-            return
+            # Exit HouseAgent
+            sys.exit()
         
         elif float(version) == float(dbversion):
             self.log.debug("Database schema is up to date")
@@ -70,27 +70,26 @@ class Database():
                 self.log.error("Cannot make a backup copy of the database (%s)", sys.exc_info()[1])
                 return
 
-            try:
-                # Create common table if it does not already exist
-                txn.execute("CREATE TABLE IF NOT EXISTS common (parm VARCHAR(16) PRIMARY KEY, parm_value VARCHAR(24) NOT NULL)")
+            if version == '0.0':
+                try:
+                    # Create common table
+                    txn.execute("CREATE TABLE IF NOT EXISTS common (parm VARCHAR(16) PRIMARY KEY, parm_value VARCHAR(24) NOT NULL)")
             
-                # Schema version did not exist in database, insert it
-                txn.execute("INSERT INTO common (parm, parm_value) VALUES ('schema_version', ?)", [dbversion])
+                    # Add schema version to database
+                    txn.execute("INSERT INTO common (parm, parm_value) VALUES ('schema_version', ?)", [dbversion])
 
-                # Set primary key of the devices table on address + plugin_id to prevent adding duplicate devices
-                txn.execute("CREATE TEMPORARY TABLE devices_backup(id INTEGER PRIMARY KEY, name VARCHAR(45), address VARCHAR(45) NOT NULL, plugin_id INTEGER NOT NULL, location_id INTEGER)")
-                txn.execute("INSERT INTO devices_backup SELECT id, name, address, plugin_id, location_id FROM devices")
-                txn.execute("DROP TABLE devices")
-                txn.execute("CREATE TABLE devices(id INTEGER PRIMARY KEY, name VARCHAR(45), address VARCHAR(45) NOT NULL, plugin_id INTEGER, location_id INTEGER)")
-                txn.execute("CREATE UNIQUE INDEX device_address ON devices (address, plugin_id)")
-                txn.execute("INSERT INTO devices SELECT id, name, address, plugin_id, location_id FROM devices_backup")
-                txn.execute("DROP TABLE devices_backup")
+                    # Set primary key of the devices table on address + plugin_id to prevent adding duplicate devices
+                    txn.execute("CREATE TEMPORARY TABLE devices_backup(id INTEGER PRIMARY KEY, name VARCHAR(45), address VARCHAR(45) NOT NULL, plugin_id INTEGER NOT NULL, location_id INTEGER)")
+                    txn.execute("INSERT INTO devices_backup SELECT id, name, address, plugin_id, location_id FROM devices")
+                    txn.execute("DROP TABLE devices")
+                    txn.execute("CREATE TABLE devices(id INTEGER PRIMARY KEY, name VARCHAR(45), address VARCHAR(45) NOT NULL, plugin_id INTEGER, location_id INTEGER)")
+                    txn.execute("CREATE UNIQUE INDEX device_address ON devices (address, plugin_id)")
+                    txn.execute("INSERT INTO devices SELECT id, name, address, plugin_id, location_id FROM devices_backup")
+                    txn.execute("DROP TABLE devices_backup")
 
-                # Update schema version
-                # txn.execute("UPDATE common SET parm_value = ? WHERE parm = 'schema_version'" % [dbversion])
-                self.log.info("Successfully upgraded database schema")
-            except:
-                self.log.error("Database schema upgrade failed (%s)" % sys.exc_info()[1])
+                    self.log.info("Successfully upgraded database schema")
+                except:
+                    self.log.error("Database schema upgrade failed (%s)" % sys.exc_info()[1])
 
     def set_coordinator(self, coordinator):
         '''
