@@ -358,7 +358,7 @@ class Logging():
 
     def info(self, message):
         '''
-        This function allows you to log a plugin warning message.
+        This function allows you to log a plugin info message.
         @param message: the message to log.
         '''
         twisted_log.msg(message, logLevel=logging.INFO)

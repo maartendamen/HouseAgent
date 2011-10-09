@@ -111,22 +111,21 @@ if os.name == "nt":
 
 if __name__ == '__main__':
     
-    if os.name == "nt":    
+    if os.name == "nt":
+        if len(sys.argv) == 1:
+            try:
         
-         if len(sys.argv) == 1:
-             try:
-     
-                 import servicemanager, winerror
-                 evtsrc_dll = os.path.abspath(servicemanager.__file__)
-                 servicemanager.PrepareToHostSingle(HouseAgentService)
-                 servicemanager.Initialize('HouseAgentService', evtsrc_dll)
-                 servicemanager.StartServiceCtrlDispatcher()
-     
-             except win32service.error, details:
-                 if details[0] == winerror.ERROR_FAILED_SERVICE_CONTROLLER_CONNECT:
-                     win32serviceutil.usage()
-         else:    
-             win32serviceutil.HandleCommandLine(HouseAgentService)
+                import servicemanager, winerror
+                evtsrc_dll = os.path.abspath(servicemanager.__file__)
+                servicemanager.PrepareToHostSingle(HouseAgentService)
+                servicemanager.Initialize('HouseAgentService', evtsrc_dll)
+                servicemanager.StartServiceCtrlDispatcher()
+        
+            except win32service.error, details:
+                if details[0] == winerror.ERROR_FAILED_SERVICE_CONTROLLER_CONNECT:
+                    win32serviceutil.usage()
+        else:    
+            win32serviceutil.HandleCommandLine(HouseAgentService)
     else:
         main = MainWrapper()
         main.start()
