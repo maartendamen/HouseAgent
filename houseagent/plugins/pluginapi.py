@@ -1,4 +1,8 @@
 import os
+import logging, logging.handlers
+import sys
+import json
+import time
 if os.name == "nt":
     import win32serviceutil
     import win32event
@@ -9,49 +13,34 @@ if os.name == "nt":
         win32eventreactor.install()
     except:
         pass        
-from twisted.internet.defer import inlineCallbacks
-from twisted.internet.error import ConnectionRefusedError
-from twisted.internet.protocol import ClientCreator
-from twisted.python import log
-from txamqp.client import TwistedDelegate
-from txamqp.content import Content
-from txamqp.protocol import AMQClient
-from txamqp.queue import Closed
 from twisted.python import log as twisted_log
 from twisted.internet import reactor, task
 from houseagent import log_path
-import logging, logging.handlers
-import sys
-import txamqp.spec
-import json
-import time
+from txZMQ import ZmqFactory, ZmqEndpoint, ZmqPubConnection, ZmqEndpointType
+from txZMQ.xreq_xrep import ZmqXREPConnection
 
 class PluginAPI(object):
     '''
-    This is the PluginAPI for HouseAgent, it allows you to create a connection to the broker.
+    This is the PluginAPI for HouseAgent.
     ''' 
-    def __init__(self, plugin_id=None, plugin_type=None, broker_ip='127.0.0.1', broker_port=5672, 
-                 username='guest', password='guest', vhost='/', **callbacks):
+    def __init__(self, guid, plugintype=None, collector_host='127.0.0.1', collector_port='13001', rpc_host=None, 
+                 rpc_port=None, **callbacks):
         
-        self._broker_host = broker_ip
-        self._broker_port = broker_port
-        self._broker_user = username
-        self._broker_pass = password
-        self._broker_vhost = vhost
-        log.msgging = logging
-
-        self._qname = plugin_id
-        self._plugintype = plugin_type
-        self._tag = 'mq%d' % id(self)
-       
-        self.crud = False
-        self._connect_client()
+        self.factory = ZmqFactory()
+        self.guid = guid
+        self.plugintype = plugintype
         
+        # Set-up connections
+        self.collector_connection(collector_host, collector_port)
+        self.rpc_connection(rpc_host, rpc_port)
+                
         # Handle callbacks
         self.custom_callback = None
         self.poweron_callback = None
         self.poweroff_callback = None
+        self.dim_callback = None
         self.thermostat_setpoint_callback = None
+        self.crud_callback = None
         
         for callback in callbacks:
             if callback == "crud":
@@ -64,230 +53,102 @@ class PluginAPI(object):
                 self.custom_callback = callbacks[callback]
             elif callback == 'thermostat_setpoint':
                 self.thermostat_setpoint_callback = callbacks[callback]
+            elif callback == 'dim':
+                self.dim_callback = callbacks[callback]
                 
-    @inlineCallbacks
-    def _connect_client(self):
-        '''
-        Sets up a client connection to the RabbitMQ broker.
-        '''
-        try:
-            spec = txamqp.spec.load("../../../specs/amqp0-8.xml")
-        except: 
-            spec = txamqp.spec.load("amqp0-8.xml")
-            
-        try:
-            client = yield ClientCreator(reactor, AMQClient, TwistedDelegate(), self._broker_vhost, spec).connectTCP(self._broker_host, int(self._broker_port))
-        except ConnectionRefusedError:            
-            log.msg("Failed to connect to RabbitMQ broker.. retrying..")
-            reactor.callLater(10.0, self._connect_client)
-            return
-        except Exception, e:
-            log.msg("Unhandled exception while connecting to RabbitMQ broker: %s" % e)
-          
-        log.msg("Connected to RabbitMQ broker, authenticating...")
-        yield client.authenticate(self._broker_user, self._broker_pass)
-        self._setup(client)
-    
-    @inlineCallbacks
-    def _setup(self, client):
-        self._client = client
-        
-        try:
-            self._channel = yield self._client.channel(1)
-        except:
-            log.msg("Error setting up RabbitMQ communication channel!")      
-
-        try:
-            yield self._channel.channel_open()
-        except:
-            log.msg("Error opening RabbitMQ communication channel!")
-                        
-        # Declare exchange
-        try:
-            yield self._channel.exchange_declare(exchange="houseagent.direct", type="direct", durable="True")
-        except:
-            log.msg("Error declaring RabbitMQ exchange!")
-
-        # Declare queue
-        try:
-            yield self._channel.queue_declare(queue=self._qname, durable=True, auto_delete=True)
-        except:
-            log.msg("Error declaring RabbitMQ queue!")
-
-        # Bind queue
-        try:
-            yield self._channel.queue_bind(queue=self._qname, exchange="houseagent.direct",
-                                     routing_key=self._qname)
-            if self.crud_callback:
-                yield self._channel.queue_bind(queue=self._qname, exchange="houseagent.direct", 
-                                               routing_key="crud")
-        except:
-            log.msg("Error binding RabbitMQ queue's!")
-
-        # Set-up consumer
-        try:
-            self._channel.basic_consume(queue=self._qname, no_ack=True,
-                                        consumer_tag=self._tag)
-        except:
-            log.msg("Error setting up RabbitMQ consumer!")
-
-        # Start receiving message from the broker
-        log.msg("Succesfully setup RabbitMQ broker connection...")
-        self._client.queue(self._tag).addCallback(lambda queue: self.handle_msg(None, queue))                    
-        
-        # This checks all plugins every 10 seconds
-        l = task.LoopingCall(self._ping)
+        # Start keep alive
+        l = task.LoopingCall(self.ping)
         l.start(10.0)
     
-    def handle_err(self, failure, queue):
+    def collector_connection(self, host, port):
         '''
-        This handles message get errors. 
+        This function sets up a connection to the HouseAgent collector.
+        @param host: the host of the collector
+        @param port: the port of the collector
         '''
-        if failure.check(Closed):
-            self._connect_client()
-        else:
-            print 'error: %s' % failure
-            self.handle_msg(None, queue)
-
-    def setup_error(self, failure):
-        print 'ERROR: failed to create RPC Receiver: %s' % failure
+        endpoint = ZmqEndpoint(ZmqEndpointType.Connect, 'tcp://%s:%s' % (host, port))
+        self.publish_socket = ZmqPubConnection(self.factory, endpoint)
         
-    def call_callback(self, function, msg, *args):
+    def rpc_connection(self, host, port):
+        '''
+        This function creates a new RPC connection for the plugin.
+        @param host: the destination host to connect to
+        @param port: the destination port to connect to
+        '''
+        self.rpc_socket = ZmqXREPConnection(self.factory, ZmqEndpoint(ZmqEndpointType.Connect, 'tcp://%s:%s' % (host, port)))
+        self.rpc_socket.gotMessage = self.handle_rpc_message
+        
+    def handle_rpc_message(self, message_id, *msg):
+        '''
+        This handles a RPC message.
+        @param message_id: the id associated with the message.
+        '''
+        try:
+            tag = msg[0]
+            message = json.loads(msg[1])
+        except:
+            return       
 
+        if tag == 'custom':
+            if self.custom_callback:
+                self.call_callback(self.custom_callback, message_id, message['action'], message['parameters'])
+        elif tag == 'power_on':
+            if self.poweron_callback:
+                self.call_callback(self.poweron_callback, message_id, message['address'])
+        elif tag == 'power_off':
+            if self.poweroff_callback:
+                self.call_callback(self.poweroff_callback, message_id, message['address'])
+        elif tag == 'dim':
+            if self.dim_callback:
+                self.call_callback(self.dim_callback, message_id, message['address'], message['level'])
+        elif tag == 'thermostat_setpoint':
+            if self.thermostat_setpoint_callback:
+                self.call_callback(self.thermostat_setpoint_callback, message_id, message['address'], message['temperature'])
+        elif tag == 'crud':
+            if self.crud_callback:
+                self.call_callback(self.crud_callback, message_id, message['action'], message['parameters'])
+
+    def call_callback(self, function, message_id, *args):
+        '''
+        This function calls a callback function in the plugin.
+        @param function: the function to call
+        @param message_id: the message id associated with the RPC request
+        '''
         def cb_reply(result):
-            print "Reply=", result
-            content = Content(json.dumps(result))
-            content.properties['correlation id'] = msg.content.properties['correlation id']
-            self._channel.basic_publish(exchange="", content=content, routing_key="houseagent")
+            self.rpc_socket.reply(message_id, json.dumps(result))
             
         def cb_failure(result):
-            content = Content(json.dumps(result))
-            content.properties['correlation id'] = msg.content.properties['correlation id']
-            self._channel.basic_publish(exchange="", content=content, routing_key="houseagent")
+            self.rpc_socket.reply(message_id, json.dumps(result))
         
-        function(*args).addCallbacks(cb_reply, cb_failure)
-       
-    def handle_msg(self, msg, queue):
-        
-        d = queue.get()
-        d.addCallback(self.handle_msg, queue)
-        d.addErrback(self.handle_err, queue)
+        # Do the actual callback in the plugin
+        try:
+            function(*args).addCallbacks(cb_reply, cb_failure)
+        except Exception as e:
+            print "Failed to do callback, fix the plugin function: %s" % (e)
 
-        if msg:
-            print "received message", msg
-            replyq = msg.content.properties.get('reply to',None)
-            message_type = msg[4]
-            
-            if msg.content and replyq:
-                request = json.loads(msg.content.body)
-                
-                print "received custom request", request
-                
-                if request["type"] == "custom":
-                    if self.custom_callback:
-                        self.call_callback(self.custom_callback, msg, request["action"], request["parameters"])
-                    else:
-                        result = self.customcallback.on_custom(request["action"], request["parameters"])
-                        
-                        content = Content(json.dumps(result))
-                        content.properties['correlation id'] = msg.content.properties['correlation id']
-                        self._channel.basic_publish(exchange="", content=content, routing_key="houseagent")
-                        
-                elif request["type"] == "poweron":
-                    if self.poweron_callback:
-                        self.call_callback(self.poweron_callback, msg, request['address'])
-                    else:
-                        result = self.poweroncallback.on_poweron(request["address"])
-                        
-                        content = Content(json.dumps(result))
-                        content.properties['correlation id'] = msg.content.properties['correlation id']
-                        self._channel.basic_publish(exchange="", content=content, routing_key="houseagent")      
-                elif request["type"] == "poweroff":
-                    if self.poweroff_callback:
-                        self.call_callback(self.poweroff_callback, msg, request['address'])
-                    else:                        
-                        result = self.poweroncallback.on_poweroff(request["address"])
-                        
-                        content = Content(json.dumps(result))
-                        content.properties['correlation id'] = msg.content.properties['correlation id']
-                        self._channel.basic_publish(exchange="", content=content, routing_key="houseagent")         
-                elif request["type"] == "dim":
-                    result = self.dimcallback.on_dim(request["address"], request["level"])
-                    
-                    content = Content(json.dumps(result))
-                    content.properties['correlation id'] = msg.content.properties['correlation id']
-                    self._channel.basic_publish(exchange="", content=content, routing_key="houseagent")         
-                elif request["type"] == "thermostat_setpoint":    
-                    if self.thermostat_setpoint_callback:
-                        self.call_callback(self.thermostat_setpoint_callback, msg, request['address'], request['temperature'])
-                    else:
-                        result = self.thermostatcallback.on_thermostat_setpoint(request['address'], request['temperature'])
-                        
-                        content = Content(json.dumps(result))
-                        content.properties['correlation id'] = msg.content.properties['correlation id']
-                        self._channel.basic_publish(exchange="", content=content, routing_key="houseagent")         
-            
-            if message_type == 'crud':
-                # Handle CRUD callback
-                
-                request = json.loads(msg.content.body)
-                try:
-                    self.crud_callback(request['type'], request['action'], request['parameters'])
-                except Exception as e: 
-                    print "Failed to do CRUD callback, fix the plugin function: %s" % e
-                
-                
-    def register_custom(self, calling_class):
-        """
-        Register's for a custom command callback.
-        """
-        self.customcallback = calling_class
-        
-    def register_poweron(self, calling_class):
-        self.poweroncallback = calling_class
-        
-    def register_poweroff(self, calling_class):
-        self.poweroffcallback = calling_class
-
-    def register_dim(self, calling_class):
-        self.dimcallback = calling_class
-        
-    def register_thermostat_setpoint(self, calling_class):
-        self.thermostatcallback = calling_class
-        
-    def register_crud(self, calling_class):
-        '''
-        This function allows you to register for CRUD operations.
-        Currently only device creation, update and deletion is supported. 
-        @param calling_class: the class to register
-        '''
-        self.register_crud = True                
-            
     def value_update(self, address, values):
         '''
-        Called by a plugin when a device value has been updated.
+        This function is called by a plugin when a value has been updated.
+        The message is published to the collector.
+        @param address: the address of the device
+        @param values: one or multiple values to be updated
         '''
         content = {"address": address,
                    "values": values, 
                    "time": time.time(),
-                   "plugin_id": self._qname}
+                   'plugin_id': self.guid}
         
-        msg = Content(json.dumps(content))
-        msg["delivery mode"] = 2
-        self._channel.basic_publish(exchange="houseagent.direct", content=msg, routing_key="value_updates")
-        print "Sending message: %s" % content
-        
-    def _ping(self):
+        self.publish_socket.publish(json.dumps(content), 'value_update')
+
+    def ping(self):
         '''
-        Sends an alive message on the network.
+        This function sends a keep alive message to the coordinator.
         '''
-        content = {"id": self._qname,
-                   "type": self._plugintype}
-        
-        msg = Content(json.dumps(content))
-        msg["delivery mode"] = 1
-        self._channel.basic_publish(exchange="houseagent.direct", content=msg, routing_key="network")
-        
+        content = {"id": self.guid,
+                   "type": self.plugintype}
+
+        self.publish_socket.publish(json.dumps(content), 'network')
+                         
 class Logging():
     '''
     This class provides generic logging facilities for HouseAgent plug-ins. 

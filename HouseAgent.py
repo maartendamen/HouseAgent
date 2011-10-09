@@ -4,6 +4,7 @@ from houseagent.core.web import Web
 from houseagent.core.database import Database
 from twisted.internet import reactor
 from houseagent.plugins.pluginapi import Logging
+from zmq.core.error import ZMQError
 import sys
 import os
 import ConfigParser
@@ -29,12 +30,9 @@ class MainWrapper():
             self.port = config.getint('webserver', 'port')
             self.loglevel = config.get('general', 'loglevel')
             
-            # Get broker information (RabbitMQ)
-            self.broker_host = config.get("broker", "host")
-            self.broker_port = config.getint("broker", "port")
-            self.broker_user = config.get("broker", "username")
-            self.broker_pass = config.get("broker", "password")
-            self.broker_vhost = config.get("broker", "vhost")
+            # Get ZeroMQ information
+            self.collector_host = config.get('zmq', 'collector_host')
+            self.collector_port = config.get('zmq', 'collector_port')
         else:
             print "Configuration file not found! Make sure the configuration file is placed in the proper directory. For *nix: /etc/HouseAgent/, for Windows C:\Programdata\HouseAgent"
             sys.exit()
@@ -48,8 +46,13 @@ class MainWrapper():
         database = Database()
         
         self.log.debug("Starting HouseAgent coordinator...")
-        coordinator = Coordinator("houseagent", self.broker_host, self.broker_port, self.broker_user,
-                                  self.broker_pass, self.broker_vhost, database=database)
+        coordinator = Coordinator(self.log, database)
+        
+        try:
+            coordinator.init_collector(self.collector_host, self.collector_port)
+        except ZMQError, err:
+            self.log.error("Failed to bind collector socket on port: %s, error: %s. Exiting HouseAgent." % (self.collector_port, err))
+            sys.exit()
         
         self.log.debug("Starting HouseAgent event handler...")
         event_handler = EventHandler(coordinator, database)

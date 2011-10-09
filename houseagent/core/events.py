@@ -19,8 +19,7 @@ class EventHandler(object):
         self._load_triggers()
         
         # let the coordinator know we are here
-        coordinator.register_eventengine(self)
-        self._coordinator = coordinator
+        coordinator.eventengine = self
     
     @inlineCallbacks
     def _load_triggers(self):
@@ -136,6 +135,9 @@ class EventHandler(object):
         '''
         Callback from the coordinator when a device value has been changed.
         '''
+        if not value_id:
+            return
+        
         for t in self._triggers:
 
             if t.type == "Device value change" and int(t.current_value_id) == int(value_id):
