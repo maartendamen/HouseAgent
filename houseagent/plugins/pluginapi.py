@@ -337,6 +337,8 @@ class Logging():
             self.logger.setLevel(logging.WARNING)
         elif level == 'error':
             self.logger.setLevel(logging.ERROR)
+        elif level == 'info':
+            self.logger.setLevel(logging.INFO)
         elif level == 'none':
             self.logger.setLevel(logging.NOTSET)
             
@@ -353,6 +355,13 @@ class Logging():
         @param message: the message to log.
         '''
         twisted_log.msg(message, logLevel=logging.WARNING)
+
+    def info(self, message):
+        '''
+        This function allows you to log a plugin warning message.
+        @param message: the message to log.
+        '''
+        twisted_log.msg(message, logLevel=logging.INFO)
     
     def debug(self, message):
         '''
