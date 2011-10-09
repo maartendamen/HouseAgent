@@ -43,7 +43,7 @@ class MainWrapper():
         self.log.set_level(self.loglevel)
         
         self.log.debug("Starting HouseAgent database layer...")
-        database = Database()
+        database = Database(self.log)
         
         self.log.debug("Starting HouseAgent coordinator...")
         coordinator = Coordinator(self.log, database)
@@ -116,20 +116,20 @@ if __name__ == '__main__':
     
     if os.name == "nt":    
         
-        if len(sys.argv) == 1:
-            try:
-    
-                import servicemanager, winerror
-                evtsrc_dll = os.path.abspath(servicemanager.__file__)
-                servicemanager.PrepareToHostSingle(HouseAgentService)
-                servicemanager.Initialize('HouseAgentService', evtsrc_dll)
-                servicemanager.StartServiceCtrlDispatcher()
-    
-            except win32service.error, details:
-                if details[0] == winerror.ERROR_FAILED_SERVICE_CONTROLLER_CONNECT:
-                    win32serviceutil.usage()
-        else:    
-            win32serviceutil.HandleCommandLine(HouseAgentService)
+         if len(sys.argv) == 1:
+             try:
+     
+                 import servicemanager, winerror
+                 evtsrc_dll = os.path.abspath(servicemanager.__file__)
+                 servicemanager.PrepareToHostSingle(HouseAgentService)
+                 servicemanager.Initialize('HouseAgentService', evtsrc_dll)
+                 servicemanager.StartServiceCtrlDispatcher()
+     
+             except win32service.error, details:
+                 if details[0] == winerror.ERROR_FAILED_SERVICE_CONTROLLER_CONNECT:
+                     win32serviceutil.usage()
+         else:    
+             win32serviceutil.HandleCommandLine(HouseAgentService)
     else:
         main = MainWrapper()
         main.start()
