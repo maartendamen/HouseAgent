@@ -2,6 +2,7 @@ from houseagent.core.coordinator import Coordinator
 from houseagent.core.events import EventHandler
 from houseagent.core.web import Web
 from houseagent.core.database import Database
+from houseagent.core.databaseflash import DatabaseFlash
 from twisted.internet import reactor
 from houseagent.plugins.pluginapi import Logging
 import sys
@@ -35,6 +36,15 @@ class MainWrapper():
             self.broker_user = config.get("broker", "username")
             self.broker_pass = config.get("broker", "password")
             self.broker_vhost = config.get("broker", "vhost")
+
+            # Embedded flag. New settings are now being considered
+            self.isEmbedded = config.has_section("embedded")
+            if self.isEmbedded:
+                # Interval in seconds between periodic saves from cache to database
+                if config.has_option("embedded", "dbsaveinterval"):                    
+                    self.dbSaveInterval = config.getint("embedded", "dbsaveinterval")
+                else:
+                    self.dbSaveInterval = 0
         else:
             print "Configuration file not found! Make sure the configuration file is placed in the proper directory. For *nix: /etc/HouseAgent/, for Windows C:\Programdata\HouseAgent"
             sys.exit()
@@ -45,7 +55,11 @@ class MainWrapper():
         self.log.set_level(self.loglevel)
         
         self.log.debug("Starting HouseAgent database layer...")
-        database = Database(self.log)
+
+        if self.isEmbedded:
+            database = DatabaseFlash(self.log, self.dbSaveInterval)
+        else:
+            database = Database(self.log)
         
         self.log.debug("Starting HouseAgent coordinator...")
         coordinator = Coordinator("houseagent", self.broker_host, self.broker_port, self.broker_user,
