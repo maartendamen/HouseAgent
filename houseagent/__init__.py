@@ -34,7 +34,7 @@ if os.name == 'nt':
     from win32com.shell import shellcon, shell            
     log_path = os.path.join(shell.SHGetFolderPath(0, shellcon.CSIDL_COMMON_APPDATA, 0, 0), 'HouseAgent', 'logs')  
 else:    
-    log_path = os.path.join(sys.prefix, 'share', 'HouseAgent', 'logs')
+    log_path = os.path.join("/", 'tmp', 'HouseAgent')
     
 if os.path.exists(log_path):
     log_path = log_path
@@ -42,7 +42,7 @@ else:
     try:
         os.mkdir(log_path)
     except:
-        print "Error creating log directory!"
+        print "Error creating log directory!", log_path
         log_path = log_path
         
 """ Configuration path """

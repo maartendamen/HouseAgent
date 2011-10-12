@@ -15,7 +15,10 @@ import datetime
 
 class DatabaseFlash(Database):
     '''
-    HouseAgent database optimized for flash drives
+    HouseAgent database optimized for flash drives.
+    This database subclass caches the value updates in a list by means of a CurrentValue object.
+    Then, "in-memory" values are saved back to the current_values table whenever a query is
+    launched from the web or periodically 
     '''              
     def __init__(self, log, interval):
         '''
@@ -29,7 +32,7 @@ class DatabaseFlash(Database):
         # Create list of current values
         self.currValues = CurrentValues(self.dbpool)
 
-        # Periodic save of current values in database
+        # Periodic write of current values in database
         if interval > 0:
             lp = LoopingCall(self.currValues.saveValuesInDB)
             lp.start(interval, False)
@@ -38,6 +41,7 @@ class DatabaseFlash(Database):
     @inlineCallbacks
     def update_or_add_value(self, name, value, pluginid, address, time=None):
         '''
+        Overriden method
         This function updates or adds values to the HouseAgent database.
         
         @param name: the name of the value
@@ -52,14 +56,14 @@ class DatabaseFlash(Database):
             updatetime = datetime.datetime.fromtimestamp(time).isoformat(' ').split('.')[0]
 
         # Query device first
-        device_id = yield self.dbpool.runQuery('select id from devices WHERE plugin_id = ? and address = ? LIMIT 1', (pluginid, address) )
+        device = yield self.dbpool.runQuery('select id from devices WHERE plugin_id = ? and address = ? LIMIT 1', (pluginid, address) )
 
         try:
-            device_id = device_id[0][0]
+            device_id = device[0][0]
         except:
             returnValue('') # device does not exist
         
-        current_value = yield self.dbpool.runQuery("select id, name, history from current_values where name=? AND device_id=? LIMIT 1", (name, device_id))
+        current_value = yield self.currValues.queryStaticData(name=name, device_id=device_id)
     
         try:
             value_id = current_value[0][0]
@@ -79,8 +83,10 @@ class DatabaseFlash(Database):
             if current_value[0][2] not in (0, None):
                 DataHistory("data", value_id, value, "GAUGE", 60, int(time))                
         else:
-            yield self.dbpool.runQuery("INSERT INTO current_values (name, value, device_id, lastupdate) VALUES (?, ?, (select id from devices where address=? AND plugin_id=?),  ?)", (name, value, address, pluginid, updatetime))
-            current_value = yield self.dbpool.runQuery("select id from current_values where name=? AND device_id=?", (name, device_id))
+            # Insert new row in current_values
+            yield self.currValues.insertValueinDB(name, value, address, device_id, pluginid, updatetime)
+            # Query last inserted row
+            current_value = yield self.currValues.queryStaticData(name=name, device_id=device_id)
             value_id = current_value[0][0]
             # Add new value to the list
             currVal = CurrentValue(value_id, value, updatetime)
@@ -125,7 +131,9 @@ class DatabaseFlash(Database):
     
         @inlineCallbacks
         def getResult():
-            value = yield self.dbpool.runQuery("SELECT name from current_values WHERE id = ? LIMIT 1", [value_id])
+            # Query static data (format of the output: [id, name, history])
+            value = yield self.currValues.queryStaticData(id=value_id)
+            # Get actual current value
             currVal = self.currValues.getCurrentValue(value_id)
             if currVal is not None:
                 result = [(currVal.value, value[0][0])]
@@ -139,16 +147,16 @@ class CurrentValue:
     """
     Class representation of current value
     """
-    def __init__(self, id, value, lastUpdate):
+    def __init__(self, valId, value, lastUpdate):
         """
         Class constructor
         
-        @param id: id of the table row within SQLite
+        @param valId: id of the table row (current_value) within SQLite
         @param value: current value in string format
         @param lastUpdate: last update time
         """
         ## id of the table row within SQLite
-        self.id = id
+        self.id = valId
         ## Current value in string format
         self.value = value
         ## Last update time
@@ -204,11 +212,45 @@ class CurrentValues:
                 return currVal                
         return None
     
+    
+    def queryStaticData(self, value_id=None, name=None, device_id=None):
+        """
+        Query static data about a given value in current_values
         
+        @param value_id: Value ID
+        @param name: NAme fo the value
+        @param device_id: Device ID
+        
+        @return Deferred object to the result of this query. Format of the result:
+        [id, name, history]
+        """
+        if value_id is not None:
+            return self.connPool.runQuery("SELECT id, name, history from current_values WHERE id = ? LIMIT 1", [value_id])
+        else:
+            return self.connPool.runQuery("select id, name, history from current_values where name=? AND device_id=? LIMIT 1", (name, device_id))
+
+    
+    @inlineCallbacks
+    def insertValueinDB(self, name, value, address, plugin_id, updatetime):
+        """
+        Insert new value row in the table. Get the id of the new inserted row
+        
+        @param name: Name of the value
+        @param value: Current value
+        @param address: Address of the device
+        @param plugin_id: ID of the plugin
+        @param updatetime: Last update time for the current value
+        
+        @return deferred object to the result of the query
+        """
+        # Insert new value into current_values
+        return self.connPool.runQuery("INSERT INTO current_values (name, value, device_id, lastupdate) VALUES (?, ?, (select id from devices where address=? AND plugin_id=?),  ?)", (name, value, address, plugin_id, updatetime))
+
+    
     @inlineCallbacks
     def saveValuesInDB(self):
         """
-        Save values in database
+        Save values in database. Only modified values are been written
         """
         # Query database first
         queryStr = "SELECT id, value, lastupdate from current_values"                    
