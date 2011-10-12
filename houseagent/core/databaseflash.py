@@ -16,9 +16,9 @@ import datetime
 class DatabaseFlash(Database):
     '''
     HouseAgent database optimized for flash drives.
-    This database subclass caches the value updates in a list by means of a CurrentValue object.
-    Then, "in-memory" values are saved back to the current_values table whenever a query is
-    launched from the web or periodically 
+    This database subclass caches the value updates in a list by means of a CurrentValueTable
+    object. Then, "in-memory" values are saved back to the current_values table whenever a
+    query is launched from the web or periodically 
     '''              
     def __init__(self, log, interval):
         '''
@@ -30,11 +30,11 @@ class DatabaseFlash(Database):
         Database.__init__(self, log)
 
         # Create list of current values
-        self.currValues = CurrentValues(self.dbpool)
+        self.curr_values = CurrentValueTable(self.dbpool)
 
         # Periodic write of current values in database
         if interval > 0:
-            lp = LoopingCall(self.currValues.saveValuesInDB)
+            lp = LoopingCall(self.curr_values.save_values_in_db)
             lp.start(interval, False)
 
 
@@ -63,7 +63,7 @@ class DatabaseFlash(Database):
         except:
             returnValue('') # device does not exist
         
-        current_value = yield self.currValues.queryStaticData(name=name, device_id=device_id)
+        current_value = yield self.curr_values.query_static_data(name=name, device_id=device_id)
     
         try:
             value_id = current_value[0][0]
@@ -73,24 +73,24 @@ class DatabaseFlash(Database):
         # If current value found in database
         if value_id:
             # Get current value from list
-            currVal = self.currValues.getCurrentValue(value_id)
-            if currVal is not None:
+            curr_val = self.curr_values.get_current_value(value_id)
+            if curr_val is not None:
                 # Update value
-                currVal.value = value
-                currVal.lastUpdate = updatetime
+                curr_val.value = value
+                curr_val.last_update = updatetime
                 
             # Log value?
             if current_value[0][2] not in (0, None):
                 DataHistory("data", value_id, value, "GAUGE", 60, int(time))                
         else:
             # Insert new row in current_values
-            yield self.currValues.insertValueinDB(name, value, address, device_id, pluginid, updatetime)
+            yield self.curr_values.insert_value_in_db(name, value, address, device_id, pluginid, updatetime)
             # Query last inserted row
-            current_value = yield self.currValues.queryStaticData(name=name, device_id=device_id)
+            current_value = yield self.curr_values.query_static_data(name=name, device_id=device_id)
             value_id = current_value[0][0]
             # Add new value to the list
-            currVal = CurrentValue(value_id, value, updatetime)
-            self.currValues.addValue(currVal)
+            curr_val = CurrentValue(value_id, value, updatetime)
+            self.curr_values.add_value(curr_val)
                         
         returnValue(value_id)
                
@@ -98,11 +98,12 @@ class DatabaseFlash(Database):
     def query_values(self):
         """
         Query current values
+        Cached values are saved into database each time this method is called
         
         @return List of values
         """
         # Update database from current values in memory
-        self.currValues.saveValuesInDB()
+        self.curr_values.save_values_in_db()
         # Query database
         return Database.query_values(self)
 
@@ -110,11 +111,12 @@ class DatabaseFlash(Database):
     def query_controllable_devices(self):
         """
         Query controllable values
+        Cached values are saved into database each time this method is called
         
         @return list of values
         """
         # Update database from current values in memory
-        self.currValues.saveValuesInDB()
+        self.curr_values.save_values_in_db()
         # Query database
         return Database.query_controllable_devices(self)
 
@@ -130,16 +132,16 @@ class DatabaseFlash(Database):
         d = defer.Deferred()
     
         @inlineCallbacks
-        def getResult():
+        def get_result():
             # Query static data (format of the output: [id, name, history])
-            value = yield self.currValues.queryStaticData(id=value_id)
+            value = yield self.curr_values.query_static_data(id=value_id)
             # Get actual current value
-            currVal = self.currValues.getCurrentValue(value_id)
-            if currVal is not None:
-                result = [(currVal.value, value[0][0])]
+            curr_val = self.curr_values.get_current_value(value_id)
+            if curr_val is not None:
+                result = [(curr_val.value, value[0][0])]
                 d.callback(result)
        
-        reactor.callLater(0, getResult)               
+        reactor.callLater(0, get_result)               
         return d
    
         
@@ -147,36 +149,37 @@ class CurrentValue:
     """
     Class representation of current value
     """
-    def __init__(self, valId, value, lastUpdate):
+    def __init__(self, val_id, value, last_update):
         """
         Class constructor
         
-        @param valId: id of the table row (current_value) within SQLite
+        @param val_id: id of the table row (current_value) within SQLite
         @param value: current value in string format
-        @param lastUpdate: last update time
+        @param last_update: last update time
         """
         ## id of the table row within SQLite
-        self.id = valId
+        self.id = val_id
         ## Current value in string format
         self.value = value
         ## Last update time
-        self.lastUpdate = lastUpdate
+        self.last_update = last_update
         
         
-class CurrentValues:
+class CurrentValueTable:
     """
-    HouseAgent current values stored in list
+    Class representing HouseAgent's current_value table with all the live data (value and time)
+    being stored in an in-memory list
     """
-    def _queryCurrentValuesTable(self):
+    def _query_current_values_table(self):
         """
         Query existing current_values table
         """
-        queryStr = "SELECT id, value, lastupdate from current_values"
+        query_str = "SELECT id, value, lastupdate from current_values"
                     
-        self.connPool.runQuery(queryStr).addCallback(self._cb_QueryResult, "GETDBDATA")
+        self.conn_pool.runQuery(query_str).addCallback(self._cb_query_result, "GETDBDATA")
 
     
-    def _cb_QueryResult(self, result, action):
+    def _cb_query_result(self, result, action):
         """
         Result of the last query SQLite query received
         
@@ -184,22 +187,23 @@ class CurrentValues:
         @param action: Action to be deployed
         """
         if action == "GETDBDATA":
-            self.lstCurrValues = []
+            # Fill the "in_memory" list of "live" data
+            self.lst_curr_values = []
             for row in result:
-                currValue = CurrentValue(row[0], row[1], row[2])
-                self.lstCurrValues.append(currValue)
+                curr_value = CurrentValue(row[0], row[1], row[2])
+                self.add_value(curr_value)
 
 
-    def addValue(self, currValue):
+    def add_value(self, curr_value):
         """
         Add new value to the list
         
-        @param currValue: Current value to be added
+        @param curr_value: Current value to be added
         """
-        self.lstCurrValues.append(currValue)
+        self.lst_curr_values.append(curr_value)
         
 
-    def getCurrentValue(self, id):
+    def get_current_value(self, val_id):
         """
         Get current value from list
         
@@ -207,13 +211,13 @@ class CurrentValues:
         
         @return Current value entry or None if no value is found
         """
-        for currVal in self.lstCurrValues:
-            if currVal.id == id:
-                return currVal                
+        for curr_val in self.lst_curr_values:
+            if curr_val.id == val_id:
+                return curr_val                
         return None
     
     
-    def queryStaticData(self, value_id=None, name=None, device_id=None):
+    def query_static_data(self, value_id=None, name=None, device_id=None):
         """
         Query static data about a given value in current_values
         
@@ -225,13 +229,13 @@ class CurrentValues:
         [id, name, history]
         """
         if value_id is not None:
-            return self.connPool.runQuery("SELECT id, name, history from current_values WHERE id = ? LIMIT 1", [value_id])
+            return self.conn_pool.runQuery("SELECT id, name, history from current_values WHERE id = ? LIMIT 1", [value_id])
         else:
-            return self.connPool.runQuery("select id, name, history from current_values where name=? AND device_id=? LIMIT 1", (name, device_id))
+            return self.conn_pool.runQuery("select id, name, history from current_values where name=? AND device_id=? LIMIT 1", (name, device_id))
 
     
     @inlineCallbacks
-    def insertValueinDB(self, name, value, address, plugin_id, updatetime):
+    def insert_value_in_db(self, name, value, address, plugin_id, update_time):
         """
         Insert new value row in the table. Get the id of the new inserted row
         
@@ -239,70 +243,71 @@ class CurrentValues:
         @param value: Current value
         @param address: Address of the device
         @param plugin_id: ID of the plugin
-        @param updatetime: Last update time for the current value
+        @param update_time: Last update time for the current value
         
         @return deferred object to the result of the query
         """
         # Insert new value into current_values
-        return self.connPool.runQuery("INSERT INTO current_values (name, value, device_id, lastupdate) VALUES (?, ?, (select id from devices where address=? AND plugin_id=?),  ?)", (name, value, address, plugin_id, updatetime))
+        return self.conn_pool.runQuery("INSERT INTO current_values (name, value, device_id, lastupdate) VALUES (?, ?, (select id from devices where address=? AND plugin_id=?),  ?)", (name, value, address, plugin_id, update_time))
 
     
     @inlineCallbacks
-    def saveValuesInDB(self):
+    def save_values_in_db(self):
         """
-        Save values in database. Only modified values are been written
+        Save values in database. Only modified values/timestamps are been written
         """
         # Query database first
-        queryStr = "SELECT id, value, lastupdate from current_values"                    
-        values = yield self.connPool.runQuery(queryStr)
+        querystr = "SELECT id, value, lastupdate from current_values"                    
+        values = yield self.conn_pool.runQuery(querystr)
         start = True
         update = False
-        valStr = ""
-        timeStr = ""
-        idStr = "("
+        valstr = ""
+        timestr = ""
+        idstr = "("
         
-        for i, currVal in enumerate(self.lstCurrValues):
+        for i, curr_val in enumerate(self.lst_curr_values):
             # Value changed?
-            id = values[i][0]
-            oldVal = values[i][1]
+            val_id = values[i][0]
+            oldval = values[i][1]
+            oldtime = values[i][2]
             
-            if (currVal.id == id) and (currVal.value != oldVal):
+            if (curr_val.id == val_id) and ((curr_val.value != oldval) or (curr_val.last_update != oldtime)):
                 if not update:
                     update = True               
                 if start:
                     start = False
                 else:
-                    idStr += ","
-                idStr += str(currVal.id)
-                valStr += "WHEN " + str(currVal.id) + " THEN \"" + str(currVal.value) + "\"\n"
-                timeStr += "WHEN " + str(currVal.id) + " THEN \"" + str(currVal.lastUpdate) + "\"\n"
+                    idstr += ","
+                idstr += str(curr_val.id)
+                valstr += "WHEN " + str(curr_val.id) + " THEN \"" + str(curr_val.value) + "\"\n"
+                timestr += "WHEN " + str(curr_val.id) + " THEN \"" + str(curr_val.last_update) + "\"\n"
 
         
         if not update:
             return
         
-        idStr += ")"
-        queryStr = "UPDATE current_values SET value = CASE id\n"
-        queryStr += valStr
-        queryStr += "END,\n"
-        queryStr += "lastupdate = CASE id\n"
-        queryStr += timeStr
-        queryStr += "END\n"        
-        queryStr += "WHERE id IN " + idStr
+        idstr += ")"
+        querystr = "UPDATE current_values SET value = CASE id\n"
+        querystr += valstr
+        querystr += "END,\n"
+        querystr += "lastupdate = CASE id\n"
+        querystr += timestr
+        querystr += "END\n"        
+        querystr += "WHERE id IN " + idstr
         
         # Run query
-        yield self.connPool.runQuery(queryStr)
+        yield self.conn_pool.runQuery(querystr)
               
 
-    def __init__(self, connPool):
+    def __init__(self, conn_pool):
         """
         Class constructor
         
-        @param connPool: Database connection pool
+        @param conn_pool: Database connection pool
         """
         ## Connection pool to data base
-        self.connPool = connPool
+        self.conn_pool = conn_pool
         ## List of current values
-        self.lstCurrValues = None
+        self.lst_curr_values = None
         # Query current_values table
-        self._queryCurrentValuesTable()
+        self._query_current_values_table()

@@ -38,13 +38,13 @@ class MainWrapper():
             self.broker_vhost = config.get("broker", "vhost")
 
             # Embedded flag. New settings are now being considered
-            self.isEmbedded = config.has_section("embedded")
-            if self.isEmbedded:
+            self.is_embedded = config.has_section("embedded")
+            if self.is_embedded:
                 # Interval in seconds between periodic saves from cache to database
                 if config.has_option("embedded", "dbsaveinterval"):                    
-                    self.dbSaveInterval = config.getint("embedded", "dbsaveinterval")
+                    self.db_save_nterval = config.getint("embedded", "dbsaveinterval")
                 else:
-                    self.dbSaveInterval = 0
+                    self.db_save_nterval = 0
         else:
             print "Configuration file not found! Make sure the configuration file is placed in the proper directory. For *nix: /etc/HouseAgent/, for Windows C:\Programdata\HouseAgent"
             sys.exit()
@@ -56,8 +56,8 @@ class MainWrapper():
         
         self.log.debug("Starting HouseAgent database layer...")
 
-        if self.isEmbedded:
-            database = DatabaseFlash(self.log, self.dbSaveInterval)
+        if self.is_embedded:
+            database = DatabaseFlash(self.log, self.db_save_nterval)
         else:
             database = Database(self.log)
         
