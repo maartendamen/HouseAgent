@@ -11,6 +11,7 @@ from twisted.internet.defer import inlineCallbacks, returnValue
 from twisted.internet.task import LoopingCall
 
 import datetime
+import sys
 
 
 class DatabaseFlash(Database):
@@ -250,54 +251,39 @@ class CurrentValueTable:
         # Insert new value into current_values
         return self.conn_pool.runQuery("INSERT INTO current_values (name, value, device_id, lastupdate) VALUES (?, ?, (select id from devices where address=? AND plugin_id=?),  ?)", (name, value, address, plugin_id, update_time))
 
-    
-    @inlineCallbacks
-    def save_values_in_db(self):
+
+    def _save_table(self, txn):
         """
-        Save values in database. Only modified values/timestamps are been written
+        Save values in current_values table. Only modified values/timestamps are been written
+        This method has to be run within a runInteraction call
         """
         # Query database first
-        querystr = "SELECT id, value, lastupdate from current_values"                    
-        values = yield self.conn_pool.runQuery(querystr)
-        start = True
-        update = False
-        valstr = ""
-        timestr = ""
-        idstr = "("
+        querystr = "SELECT id, value, lastupdate from current_values"
+        values = txn.execute(querystr).fetchall()
         
+        # Prepare query for updating values and timestamps
+        querystr = "UPDATE current_values SET value=?, lastupdate=? WHERE id=?"
         for i, curr_val in enumerate(self.lst_curr_values):
             # Value changed?
             val_id = values[i][0]
             oldval = values[i][1]
             oldtime = values[i][2]
             
+            # Run update only forthose values that have been updated
             if (curr_val.id == val_id) and ((curr_val.value != oldval) or (curr_val.last_update != oldtime)):
-                if not update:
-                    update = True               
-                if start:
-                    start = False
-                else:
-                    idstr += ","
-                idstr += str(curr_val.id)
-                valstr += "WHEN " + str(curr_val.id) + " THEN \"" + str(curr_val.value) + "\"\n"
-                timestr += "WHEN " + str(curr_val.id) + " THEN \"" + str(curr_val.last_update) + "\"\n"
-
-        
-        if not update:
-            return
-        
-        idstr += ")"
-        querystr = "UPDATE current_values SET value = CASE id\n"
-        querystr += valstr
-        querystr += "END,\n"
-        querystr += "lastupdate = CASE id\n"
-        querystr += timestr
-        querystr += "END\n"        
-        querystr += "WHERE id IN " + idstr
-        
-        # Run query
-        yield self.conn_pool.runQuery(querystr)
-              
+                txn.execute(querystr, [curr_val.value, curr_val.last_update, curr_val.id])
+                
+            
+    def save_values_in_db(self):
+        """
+        Save values in database
+        """
+        try:
+            # Run database operations in a separate thread
+            return self.conn_pool.runInteraction(self._save_table)
+        except:
+            self.log.error("Unable to write current values in database (%s)" % sys.exc_info()[1])
+    
 
     def __init__(self, conn_pool):
         """
