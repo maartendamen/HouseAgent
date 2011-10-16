@@ -1,5 +1,6 @@
 import os
-import logging, logging.handlers
+import logging 
+import logging.handlers
 import sys
 import json
 import time
@@ -14,25 +15,77 @@ if os.name == "nt":
     except:
         pass        
 from twisted.python import log as twisted_log
-from twisted.internet import reactor, task
+from twisted.internet import reactor, task, defer
 from houseagent import log_path
-from txZMQ import ZmqFactory, ZmqEndpoint, ZmqPubConnection, ZmqEndpointType
-from txZMQ.xreq_xrep import ZmqXREPConnection
+from txZMQ import ZmqFactory, ZmqEndpoint, ZmqConnection, ZmqEndpointType
+from zmq.core import constants
+
+class PluginConnection(ZmqConnection):        
+    '''
+    Class that takes care of connecting to the broker.
+    '''
+    socketType = constants.XREQ
+        
+    def __init__(self, factory, pluginapi, *endpoints):
+        '''
+        Initialize a new PluginConnection instance.
+        
+        @param factory: an instance of ZmqFactory
+        @param pluginapi: an instance of PluginAPI
+        '''
+        ZmqConnection.__init__(self, factory, *endpoints)
+        self.pluginapi = pluginapi
+        self.factory = factory
+        self.endpoints = endpoints
+    
+    def send_msg(self, *message_parts):
+        '''
+        Send a message to the broker.
+        
+        @param message_parts: the message parts to send. 
+        '''
+        d = defer.Deferred()
+        message = ['']
+        message.extend(message_parts)
+        self.send(message)
+        return d
+    
+    def messageReceived(self, msg):
+        '''
+        Function called when a message has been received.
+        @param msg: the message that has been received
+        '''
+        if msg[1] == '\x01':
+            # Handle ready request
+            if self.pluginapi.isready:
+                self.pluginapi.ready()
+        
+        elif msg[1] == '\x04':
+            self.pluginapi.handle_rpc_message(msg[2], msg[3])
 
 class PluginAPI(object):
     '''
     This is the PluginAPI for HouseAgent.
     ''' 
-    def __init__(self, guid, plugintype=None, collector_host='127.0.0.1', collector_port='13001', rpc_host=None, 
-                 rpc_port=None, **callbacks):
+    
+    def __init__(self, guid, plugintype=None, broker_host='127.0.0.1', broker_port='13001', **callbacks):
+        '''
+        Initialize a new PluginAPI instance.
+        
+        @param guid: the guid of the plugin
+        @param plugintype: the type of the plugin
+        @param broker_host: the broker host
+        @param broker_port: the broker port
+        '''
         
         self.factory = ZmqFactory()
         self.guid = guid
         self.plugintype = plugintype
+        self.isready = False
         
-        # Set-up connections
-        self.collector_connection(collector_host, collector_port)
-        self.rpc_connection(rpc_host, rpc_port)
+        # Set-up connection
+        self.connection = PluginConnection(self.factory, self, ZmqEndpoint(ZmqEndpointType.Connect, 
+                                                                     'tcp://%s:%s' % (broker_host, broker_port)))
                 
         # Handle callbacks
         self.custom_callback = None
@@ -57,54 +110,33 @@ class PluginAPI(object):
                 self.dim_callback = callbacks[callback]
                 
         # Start keep alive
-        l = task.LoopingCall(self.ping)
-        l.start(10.0)
-    
-    def collector_connection(self, host, port):
-        '''
-        This function sets up a connection to the HouseAgent collector.
-        @param host: the host of the collector
-        @param port: the port of the collector
-        '''
-        endpoint = ZmqEndpoint(ZmqEndpointType.Connect, 'tcp://%s:%s' % (host, port))
-        self.publish_socket = ZmqPubConnection(self.factory, endpoint)
+        l = task.LoopingCall(self.heartbeat)
+        l.start(30.0)
         
-    def rpc_connection(self, host, port):
-        '''
-        This function creates a new RPC connection for the plugin.
-        @param host: the destination host to connect to
-        @param port: the destination port to connect to
-        '''
-        self.rpc_socket = ZmqXREPConnection(self.factory, ZmqEndpoint(ZmqEndpointType.Connect, 'tcp://%s:%s' % (host, port)))
-        self.rpc_socket.gotMessage = self.handle_rpc_message
-        
-    def handle_rpc_message(self, message_id, *msg):
+    def handle_rpc_message(self, message_id, message):
         '''
         This handles a RPC message.
         @param message_id: the id associated with the message.
         '''
-        try:
-            tag = msg[0]
-            message = json.loads(msg[1])
-        except:
-            return       
 
-        if tag == 'custom':
+        message = json.loads(message)  
+
+        if message['type'] == 'custom':
             if self.custom_callback:
                 self.call_callback(self.custom_callback, message_id, message['action'], message['parameters'])
-        elif tag == 'power_on':
+        elif message['type'] == 'power_on':
             if self.poweron_callback:
                 self.call_callback(self.poweron_callback, message_id, message['address'])
-        elif tag == 'power_off':
+        elif message['type'] == 'power_off':
             if self.poweroff_callback:
                 self.call_callback(self.poweroff_callback, message_id, message['address'])
-        elif tag == 'dim':
+        elif message['type'] == 'dim':
             if self.dim_callback:
                 self.call_callback(self.dim_callback, message_id, message['address'], message['level'])
-        elif tag == 'thermostat_setpoint':
+        elif message['type'] == 'thermostat_setpoint':
             if self.thermostat_setpoint_callback:
                 self.call_callback(self.thermostat_setpoint_callback, message_id, message['address'], message['temperature'])
-        elif tag == 'crud':
+        elif message['type'] == 'crud':
             if self.crud_callback:
                 self.call_callback(self.crud_callback, message_id, message['action'], message['parameters'])
 
@@ -115,14 +147,12 @@ class PluginAPI(object):
         @param message_id: the message id associated with the RPC request
         '''
         def cb_reply(result):
-            self.rpc_socket.reply(message_id, json.dumps(result))
-            
-        def cb_failure(result):
-            self.rpc_socket.reply(message_id, json.dumps(result))
+            message = [b'', chr(5), message_id, result]
+            self.connection.send(message)
         
         # Do the actual callback in the plugin
         try:
-            function(*args).addCallbacks(cb_reply, cb_failure)
+            function(*args).addCallbacks(cb_reply, cb_reply)
         except Exception as e:
             print "Failed to do callback, fix the plugin function: %s" % (e)
 
@@ -137,17 +167,23 @@ class PluginAPI(object):
                    "values": values, 
                    "time": time.time(),
                    'plugin_id': self.guid}
+    
+        self.connection.send_msg(chr(3), json.dumps(content))
+
+    def heartbeat(self):
+        '''
+        This function sends a keep alive (heartbeat) message to the coordinator.
+        '''
+        if self.isready:
+            self.connection.send_msg(chr(2))
         
-        self.publish_socket.publish(json.dumps(content), 'value_update')
-
-    def ping(self):
+    def ready(self):
         '''
-        This function sends a keep alive message to the coordinator.
+        Set the plugin to the ready state.
+        Send a message on the broker about our state.
         '''
-        content = {"id": self.guid,
-                   "type": self.plugintype}
-
-        self.publish_socket.publish(json.dumps(content), 'network')
+        self.isready = True
+        self.connection.send_msg(chr(1), self.guid)
                          
 class Logging():
     '''

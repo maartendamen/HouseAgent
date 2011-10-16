@@ -31,8 +31,8 @@ class MainWrapper():
             self.loglevel = config.get('general', 'loglevel')
             
             # Get ZeroMQ information
-            self.collector_host = config.get('zmq', 'collector_host')
-            self.collector_port = config.get('zmq', 'collector_port')
+            self.broker_host = config.get('zmq', 'broker_host')
+            self.broker_port = config.get('zmq', 'broker_port')
         else:
             print "Configuration file not found! Make sure the configuration file is placed in the proper directory. For *nix: /etc/HouseAgent/, for Windows C:\Programdata\HouseAgent"
             sys.exit()
@@ -47,12 +47,8 @@ class MainWrapper():
         
         self.log.debug("Starting HouseAgent coordinator...")
         coordinator = Coordinator(self.log, database)
-        
-        try:
-            coordinator.init_collector(self.collector_host, self.collector_port)
-        except ZMQError, err:
-            self.log.error("Failed to bind collector socket on port: %s, error: %s. Exiting HouseAgent." % (self.collector_port, err))
-            sys.exit()
+
+        coordinator.init_broker()
         
         self.log.debug("Starting HouseAgent event handler...")
         event_handler = EventHandler(coordinator, database)
