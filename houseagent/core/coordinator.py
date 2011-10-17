@@ -79,7 +79,7 @@ class Broker(ZmqConnection):
         payload = payload[1]
         
         d = self.requests.pop(message_id)
-        d.callback(payload)
+        d.callback(json.loads(payload))
     
     def get_next_id(self):
         '''
@@ -143,6 +143,7 @@ class Coordinator(object):
                 self.log.debug("Coordinator::Plugin found in database, setting status to online...")
                 found = True
                 plugin.online = True
+                plugin.type = payload[1]
                 plugin.routing_info = routing_info
         
         if not found:
@@ -260,7 +261,7 @@ class Coordinator(object):
         @param plugin_id: the ID of the plugin
         @param content: the content to send
         '''
-        p = self.plugin_by_id(int(plugin_id))
+        p = self.plugin_by_guid(plugin_id)
         if p:
             return self.broker.send_rpc(p.routing_info, content)
         else:
@@ -303,6 +304,34 @@ class Coordinator(object):
                 return p
             
         return None
+    
+    def plugin_by_guid(self, guid):
+        '''
+        Return a plugin object identified by GUID.
+        @param guid: the guid of the plugin
+        
+        @return: None if nothing is found, otherwise Plugin()
+        '''
+        for p in self.plugins:
+            if p.guid == guid:
+                return p
+            
+        return None
+    
+    def get_plugins_by_type(self, type):
+        '''
+        Returns a list of plugins specified by type.
+        @param type: the type of plugin
+        
+        @return: a list of plugins
+        '''
+        output = []
+        for p in self.plugins:
+
+            if p.type == type:
+                output.append(p)
+        
+        return output
                 
 class Plugin(object):
     '''

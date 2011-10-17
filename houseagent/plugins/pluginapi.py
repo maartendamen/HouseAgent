@@ -147,7 +147,8 @@ class PluginAPI(object):
         @param message_id: the message id associated with the RPC request
         '''
         def cb_reply(result):
-            message = [b'', chr(5), message_id, result]
+            message = [b'', chr(5), message_id, json.dumps(result)]
+            print "Sending: %r" % (message)
             self.connection.send(message)
         
         # Do the actual callback in the plugin
@@ -183,7 +184,7 @@ class PluginAPI(object):
         Send a message on the broker about our state.
         '''
         self.isready = True
-        self.connection.send_msg(chr(1), self.guid)
+        self.connection.send_msg(chr(1), self.guid, self.plugintype)
                          
 class Logging():
     '''
