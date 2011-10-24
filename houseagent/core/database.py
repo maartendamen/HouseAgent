@@ -91,13 +91,6 @@ class Database():
                 except:
                     self.log.error("Database schema upgrade failed (%s)" % sys.exc_info()[1])
 
-    def set_coordinator(self, coordinator):
-        '''
-        Called after an instance of the coordinator has been created.
-        @param coordinator: an instance of the coordinator class.
-        '''
-        self.coordinator = coordinator
-
     def query_plugin_auth(self, authcode):
         return self.dbpool.runQuery("SELECT authcode, id from plugins WHERE authcode = '%s'" % authcode)
 
@@ -362,8 +355,9 @@ class Database():
                       "address": address,
                       "name": name,
                       "location": location}
-        
-        self.coordinator.send_crud_update("device", action, parameters)    
+
+        if self.coordinator:
+            self.coordinator.send_crud_update("device", action, parameters)    
 
     def save_device(self, name, address, plugin_id, location_id, id=None):
         '''

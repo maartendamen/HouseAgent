@@ -106,6 +106,7 @@ class Coordinator(object):
         self.log = log
         self.db = database
         self.plugins = []
+        self.crud_callbacks = []
         self.eventengine = None
         
         self.plugin_cmds = { '\x01': self.handle_plugin_ready,
@@ -114,6 +115,7 @@ class Coordinator(object):
         
         # Startup actions
         self.load_plugins()
+        self.db.coordinator = self
     
     def init_broker(self, host='*', port=13001):
         '''
@@ -145,6 +147,9 @@ class Coordinator(object):
                 plugin.online = True
                 plugin.type = payload[1]
                 plugin.routing_info = routing_info
+                
+                # Register callbacks
+                plugin.callbacks = json.loads(payload[2])                    
         
         if not found:
             self.log.warning("Coordinator::Plugin not found in database! Check your plugin GUID...")
@@ -267,7 +272,23 @@ class Coordinator(object):
         else:
             return None
         
-                                        
+    def send_crud_update(self, type, action, parameters):
+        '''
+        This function sends an update to the broker after a CRUD operation took place.
+        Plugins can subcribe to these kind of messages to handle within their plugin.
+        @param type: the update type, for example device update have the device update type
+        @param action: the CRUD action, for example update, delete, creation
+        @param parameters: the parameters specified with the CRUD action, for example a device ID
+        '''
+        content = {"type": type,
+                   "action": action, 
+                   "parameters": parameters}
+        
+        for p in self.plugins:
+            if 'crud' in p.callbacks and p.online:
+                message = [p.routing_info, b'', chr(6), json.dumps(content)]
+                self.broker.send(message)
+                           
     @inlineCallbacks
     def load_plugins(self):
         '''
@@ -352,6 +373,7 @@ class Plugin(object):
         self.online = False
         self.type = None
         self.routing_info = None
+        self.callbacks = []
         
     def __str__(self):
         ''' A string representation of the Plugin object '''

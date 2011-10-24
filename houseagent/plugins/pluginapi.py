@@ -61,7 +61,15 @@ class PluginConnection(ZmqConnection):
                 self.pluginapi.ready()
         
         elif msg[1] == '\x04':
+            # Handle RPC reply
             self.pluginapi.handle_rpc_message(msg[2], msg[3])
+            
+        elif msg[1] == '\x06':
+
+            # Handle CRUD callback
+            if self.pluginapi.crud_callback:
+                message = json.loads(msg[2])
+                self.pluginapi.crud_callback(message['type'], message['action'], message['parameters'])
 
 class PluginAPI(object):
     '''
@@ -95,8 +103,11 @@ class PluginAPI(object):
         self.thermostat_setpoint_callback = None
         self.crud_callback = None
         
+        self.callbacks = []
+        
         for callback in callbacks:
             if callback == "crud":
+                self.callbacks.append('crud')
                 self.crud_callback = callbacks[callback]
             elif callback == 'poweron':
                 self.poweron_callback = callbacks[callback]
@@ -136,11 +147,8 @@ class PluginAPI(object):
         elif message['type'] == 'thermostat_setpoint':
             if self.thermostat_setpoint_callback:
                 self.call_callback(self.thermostat_setpoint_callback, message_id, message['address'], message['temperature'])
-        elif message['type'] == 'crud':
-            if self.crud_callback:
-                self.call_callback(self.crud_callback, message_id, message['action'], message['parameters'])
 
-    def call_callback(self, function, message_id, *args):
+    def call_callback(self, function, message_id, reply=True, *args):
         '''
         This function calls a callback function in the plugin.
         @param function: the function to call
@@ -184,7 +192,7 @@ class PluginAPI(object):
         Send a message on the broker about our state.
         '''
         self.isready = True
-        self.connection.send_msg(chr(1), self.guid, self.plugintype)
+        self.connection.send_msg(chr(1), self.guid, self.plugintype, json.dumps(self.callbacks))
                          
 class Logging():
     '''
