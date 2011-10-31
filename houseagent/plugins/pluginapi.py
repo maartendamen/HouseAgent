@@ -54,7 +54,7 @@ class PluginConnection(ZmqConnection):
         '''
         Function called when a message has been received.
         @param msg: the message that has been received
-        '''
+        '''       
         if msg[1] == '\x01':
             # Handle ready request
             if self.pluginapi.isready:
@@ -148,12 +148,13 @@ class PluginAPI(object):
             if self.thermostat_setpoint_callback:
                 self.call_callback(self.thermostat_setpoint_callback, message_id, message['address'], message['temperature'])
 
-    def call_callback(self, function, message_id, reply=True, *args):
+    def call_callback(self, function, message_id, *args):
         '''
         This function calls a callback function in the plugin.
         @param function: the function to call
         @param message_id: the message id associated with the RPC request
         '''
+        
         def cb_reply(result):
             message = [b'', chr(5), message_id, json.dumps(result)]
             print "Sending: %r" % (message)
