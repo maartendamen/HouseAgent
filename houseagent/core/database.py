@@ -224,6 +224,12 @@ class Database():
         return d
     
     #def add_action(self, action_type_id, event_id):
+    
+    def query_latest_device_id(self):
+        '''
+        This function queries the latest device id.
+        '''
+        return self.dbpool.runQuery('select id from devices LIMIT 1')
          
     def query_triggers(self):
         return self.dbpool.runQuery("SELECT triggers.id, trigger_types.name, triggers.events_id, triggers.conditions " + 
@@ -314,7 +320,7 @@ class Database():
         return self.dbpool.runQuery("INSERT INTO plugins (name, authcode, location_id) VALUES (?, ?, ?)", [str(name), str(uuid), location])
 
     def query_plugins(self):
-        return self.dbpool.runQuery("SELECT plugins.name, plugins.authcode, plugins.id, locations.name from plugins " +
+        return self.dbpool.runQuery("SELECT plugins.name, plugins.authcode, plugins.id, locations.name, plugins.location_id from plugins " +
                                     "LEFT OUTER JOIN locations ON (plugins.location_id = locations.id)")
     
     def query_plugin_by_type_name(self, type_name):

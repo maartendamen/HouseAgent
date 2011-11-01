@@ -299,7 +299,7 @@ class Coordinator(object):
         
         plugins = yield self.db.query_plugins()
         for plugin in plugins:
-            p = Plugin(plugin[1], plugin[2], time.time())
+            p = Plugin(plugin[1], plugin[2], time.time(), plugin[4])
             self.plugins.append(p)
            
     def plugin_id_by_guid(self, guid):
@@ -359,13 +359,14 @@ class Plugin(object):
     This is a skeleton class for a network plugin.
     '''
     
-    def __init__(self, guid, id, time):
+    def __init__(self, guid, id, time, location_id):
         '''
         Initialize a new Plugin instance.
         
         @param guid: the guid of the plugin
         @param id: the id of the plugin
         @param time: last update time of the plugin
+        @param location_id: the location ID of the plugin
         '''
         self.guid = guid
         self.id = id
@@ -374,6 +375,7 @@ class Plugin(object):
         self.type = None
         self.routing_info = None
         self.callbacks = []
+        self.location_id = location_id
         
     def __str__(self):
         ''' A string representation of the Plugin object '''
