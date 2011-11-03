@@ -1,6 +1,12 @@
 from twisted.internet.defer import inlineCallbacks, returnValue
-from twisted.scheduling.cron import CronSchedule
-from twisted.scheduling.task import ScheduledCall
+
+# Fix to support both twisted.scheduling and txscheduling (new version)
+try:
+    from txscheduling.cron import CronSchedule
+    from txscheduling.task import ScheduledCall      
+except ImportError:
+    from twisted.scheduling.cron import CronSchedule
+    from twisted.scheduling.task import ScheduledCall    
 
 class EventHandler(object):
     
