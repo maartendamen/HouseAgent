@@ -1,5 +1,11 @@
 import sys
 import os
+from houseagent.utils.config import Config
+
+# init config instance
+conf = Config()
+# or with path to conf
+#conf = Config("/somewhere/HouseAgent.conf")
 
 """
 This init file defines some commonly used HouseAgent paths.
@@ -30,14 +36,13 @@ template_dir = os.path.join(os.path.dirname(__file__), 'templates')
 template_plugin_dir = os.path.join(os.path.dirname(__file__), 'plugins')
 
 """ Logging directory """
-if os.name == 'nt':
-    from win32com.shell import shellcon, shell            
-    log_path = os.path.join(shell.SHGetFolderPath(0, shellcon.CSIDL_COMMON_APPDATA, 0, 0), 'HouseAgent', 'logs')  
-else:    
-    log_path = os.path.join(sys.prefix, 'share', 'HouseAgent', 'logs')
-    
-if os.path.exists(log_path):
-    log_path = log_path
+#if os.name == 'nt':
+#    from win32com.shell import shellcon, shell            
+#    log_path = os.path.join(shell.SHGetFolderPath(0, shellcon.CSIDL_COMMON_APPDATA, 0, 0), 'HouseAgent', 'logs')  
+#else:    
+#    log_path = os.path.join(sys.prefix, 'share', 'HouseAgent', 'logs')
+if os.path.exists(conf.general.logpath):
+    log_path = conf.general.logpath
 else:
     log_path = 'logs'
         
