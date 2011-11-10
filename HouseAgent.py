@@ -1,3 +1,4 @@
+from houseagent.utils.config import Config
 from houseagent.core.coordinator import Coordinator
 from houseagent.core.events import EventHandler
 from houseagent.core.web import Web
@@ -7,7 +8,7 @@ from houseagent.plugins.pluginapi import Logging
 from zmq.core.error import ZMQError
 import sys
 import os
-import ConfigParser
+
 if os.name == "nt":
     import win32service
     import win32serviceutil
@@ -25,14 +26,13 @@ class MainWrapper():
         self.config_path = get_configurationpath()
         
         if os.path.exists(os.path.join(self.config_path, 'HouseAgent.conf')):
-            config = ConfigParser.RawConfigParser()
-            config.read(os.path.join(self.config_path, 'HouseAgent.conf'))
-            self.port = config.getint('webserver', 'port')
-            self.loglevel = config.get('general', 'loglevel')
+            self.config = Config(os.path.join(self.config_path, "HouseAgent.conf"))
+            self.port = self.config.webserver.port
+            self.loglevel = self.config.general.loglevel
             
             # Get ZeroMQ information
-            self.broker_host = config.get('zmq', 'broker_host')
-            self.broker_port = config.get('zmq', 'broker_port')
+            self.broker_host = self.config.zmq.broker_host
+            self.broker_port = self.config.zmq.broker_port
         else:
             print "Configuration file not found! Make sure the configuration file is placed in the proper directory. For *nix: /etc/HouseAgent/, for Windows C:\Programdata\HouseAgent"
             sys.exit()
