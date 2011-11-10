@@ -50,13 +50,15 @@ class _ConfigGeneral:
                 parser.get, "general", "logpath", None)
         self.loglevel = _getOpt(
                 parser.get, "general", "loglevel", "debug")
+        self.runasservice = _getOpt(
+                                    parser.getboolean, "general", "runasservice", False)
 
 
 class _ConfigWebserver:
 
     def __init__(self, parser):
         self.port = _getOpt(
-                parser.get, "webserver", "port", "8080")
+                parser.getint, "webserver", "port", 8080)
 
 
 class _ConfigZMQ:
@@ -65,5 +67,5 @@ class _ConfigZMQ:
         self.broker_host = _getOpt(
                 parser.get, "zmq", "host", "*")
         self.broker_port = _getOpt(
-                parser.get, "zmq", "port", "13001")
+                parser.getint, "zmq", "port", 13001)
 
