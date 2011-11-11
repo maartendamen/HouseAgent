@@ -29,7 +29,6 @@ class DatabaseFlash(Database):
         @param interval: elapsed seconds between periodic data saves (cache to database)
         '''
         Database.__init__(self, log)
-
         # Create list of current values
         self.curr_values = CurrentValueTable(self.dbpool)
 
@@ -171,6 +170,19 @@ class CurrentValueTable:
     Class representing HouseAgent's current_value table with all the live data (value and time)
     being stored in an in-memory list
     """
+    def __init__(self, conn_pool):
+        """
+        Class constructor
+        
+        @param conn_pool: Database connection pool
+        """
+        ## Connection pool to data base
+        self.conn_pool = conn_pool
+        ## List of current values
+        self.lst_curr_values = None
+        # Query current_values table
+        self._query_current_values_table()
+    
     def _query_current_values_table(self):
         """
         Query existing current_values table
@@ -283,16 +295,3 @@ class CurrentValueTable:
         except:
             self.log.error("Unable to write current values in database (%s)" % sys.exc_info()[1])
     
-
-    def __init__(self, conn_pool):
-        """
-        Class constructor
-        
-        @param conn_pool: Database connection pool
-        """
-        ## Connection pool to data base
-        self.conn_pool = conn_pool
-        ## List of current values
-        self.lst_curr_values = None
-        # Query current_values table
-        self._query_current_values_table()

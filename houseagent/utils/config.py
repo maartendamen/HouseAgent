@@ -41,7 +41,7 @@ class Config:
         self.general = _ConfigGeneral(parser)
         self.webserver = _ConfigWebserver(parser)
         self.zmq = _ConfigZMQ(parser)
-
+        self.embedded = _ConfigEmbedded(parser)
 
 class _ConfigGeneral:
 
@@ -68,4 +68,11 @@ class _ConfigZMQ:
                 parser.get, "zmq", "host", "*")
         self.broker_port = _getOpt(
                 parser.getint, "zmq", "port", 13001)
-
+        
+class _ConfigEmbedded:
+    
+    def __init__(self, parser):
+        self.enabled = _getOpt(
+                parser.getboolean, "embedded", "enabled", False)
+        self.db_save_interval = _getOpt(
+                parser.getint, "embedded", "dbsaveinterval", 0)

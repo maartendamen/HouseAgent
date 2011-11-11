@@ -6,6 +6,7 @@ from houseagent.core.coordinator import Coordinator
 from houseagent.core.events import EventHandler
 from houseagent.core.web import Web
 from houseagent.core.database import Database
+from houseagent.core.databaseflash import DatabaseFlash
 from twisted.internet import reactor
 from houseagent.plugins import pluginapi
           
@@ -20,7 +21,10 @@ class MainWrapper():
         self.log.set_level(config.general.loglevel)
         
         self.log.debug("Starting HouseAgent database layer...")
-        database = Database(self.log)
+        if config.embedded.enabled:
+            database = DatabaseFlash(self.log, config.embedded.db_save_interval)
+        else:
+            database = Database(self.log)
         
         self.log.debug("Starting HouseAgent coordinator...")
         coordinator = Coordinator(self.log, database)
