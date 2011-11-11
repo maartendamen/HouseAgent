@@ -1,6 +1,12 @@
 from twisted.internet.defer import inlineCallbacks, returnValue
-from twisted.scheduling.cron import CronSchedule
-from twisted.scheduling.task import ScheduledCall
+
+# Fix to support both twisted.scheduling and txscheduling (new version)
+try:
+    from txscheduling.cron import CronSchedule
+    from txscheduling.task import ScheduledCall      
+except ImportError:
+    from twisted.scheduling.cron import CronSchedule
+    from twisted.scheduling.task import ScheduledCall    
 
 class EventHandler(object):
     
@@ -19,8 +25,7 @@ class EventHandler(object):
         self._load_triggers()
         
         # let the coordinator know we are here
-        coordinator.register_eventengine(self)
-        self._coordinator = coordinator
+        coordinator.eventengine = self
     
     @inlineCallbacks
     def _load_triggers(self):
@@ -136,6 +141,9 @@ class EventHandler(object):
         '''
         Callback from the coordinator when a device value has been changed.
         '''
+        if not value_id:
+            return
+        
         for t in self._triggers:
 
             if t.type == "Device value change" and int(t.current_value_id) == int(value_id):

@@ -39,11 +39,7 @@ else:
 if os.path.exists(log_path):
     log_path = log_path
 else:
-    try:
-        os.mkdir(log_path)
-    except:
-        print "Error creating log directory!", log_path
-        log_path = log_path
+    log_path = 'logs'
         
 """ Configuration path """
 if os.name == 'nt':

@@ -85,7 +85,7 @@ class DatabaseFlash(Database):
                 DataHistory("data", value_id, value, "GAUGE", 60, int(time))                
         else:
             # Insert new row in current_values
-            yield self.curr_values.insert_value_in_db(name, value, address, device_id, pluginid, updatetime)
+            yield self.curr_values.insert_value_in_db(name, value, address, pluginid, updatetime)
             # Query last inserted row
             current_value = yield self.curr_values.query_static_data(name=name, device_id=device_id)
             value_id = current_value[0][0]
@@ -235,7 +235,6 @@ class CurrentValueTable:
             return self.conn_pool.runQuery("select id, name, history from current_values where name=? AND device_id=? LIMIT 1", (name, device_id))
 
     
-    @inlineCallbacks
     def insert_value_in_db(self, name, value, address, plugin_id, update_time):
         """
         Insert new value row in the table. Get the id of the new inserted row

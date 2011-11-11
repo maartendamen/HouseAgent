@@ -175,7 +175,7 @@ class Plugin_status(Resource):
     '''
     def __init__(self, coordinator, database):
         Resource.__init__(self)
-        self._coordinator = coordinator
+        self.coordinator = coordinator
         self.db = database
 
     def valueProccesor(self, result):
@@ -187,7 +187,7 @@ class Plugin_status(Resource):
         for plugin in result:
             temp = [plugin[0], plugin[1], plugin[2], False]
             
-            for p in self._coordinator._plugins:
+            for p in self.coordinator.plugins:
                 if p.guid == plugin[1]:
                     temp[3] = p.online
             

@@ -10,14 +10,13 @@ label.error {
 body {
 	background: url("/images/gradient.jpg") repeat-x scroll 0 0 #EDEDED;
 	color: #676767;
-	font: 11px Tahoma,Verdana,Helvetica,sans-serif;
+	font-family: Tahoma,Verdana,Helvetica,sans-serif;
+	font-size: 11px;
 	margin: 0;
 	padding: 0;
 }
 
-body {
-	font: 11px Tahoma,Verdana,Helvetica,sans-serif;
-}
+table {font-size:11px}
 
 div#OutsidePadding {
 	margin: 0;

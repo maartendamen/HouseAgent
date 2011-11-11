@@ -91,13 +91,6 @@ class Database():
                 except:
                     self.log.error("Database schema upgrade failed (%s)" % sys.exc_info()[1])
 
-    def set_coordinator(self, coordinator):
-        '''
-        Called after an instance of the coordinator has been created.
-        @param coordinator: an instance of the coordinator class.
-        '''
-        self.coordinator = coordinator
-
     def query_plugin_auth(self, authcode):
         return self.dbpool.runQuery("SELECT authcode, id from plugins WHERE authcode = '%s'" % authcode)
 
@@ -231,6 +224,12 @@ class Database():
         return d
     
     #def add_action(self, action_type_id, event_id):
+    
+    def query_latest_device_id(self):
+        '''
+        This function queries the latest device id.
+        '''
+        return self.dbpool.runQuery('select id from devices LIMIT 1')
          
     def query_triggers(self):
         return self.dbpool.runQuery("SELECT triggers.id, trigger_types.name, triggers.events_id, triggers.conditions " + 
@@ -321,7 +320,7 @@ class Database():
         return self.dbpool.runQuery("INSERT INTO plugins (name, authcode, location_id) VALUES (?, ?, ?)", [str(name), str(uuid), location])
 
     def query_plugins(self):
-        return self.dbpool.runQuery("SELECT plugins.name, plugins.authcode, plugins.id, locations.name from plugins " +
+        return self.dbpool.runQuery("SELECT plugins.name, plugins.authcode, plugins.id, locations.name, plugins.location_id from plugins " +
                                     "LEFT OUTER JOIN locations ON (plugins.location_id = locations.id)")
     
     def query_plugin_by_type_name(self, type_name):
@@ -362,8 +361,9 @@ class Database():
                       "address": address,
                       "name": name,
                       "location": location}
-        
-        self.coordinator.send_crud_update("device", action, parameters)    
+
+        if self.coordinator:
+            self.coordinator.send_crud_update("device", action, parameters)    
 
     def save_device(self, name, address, plugin_id, location_id, id=None):
         '''
