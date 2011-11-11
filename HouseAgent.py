@@ -38,18 +38,19 @@ class MainWrapper():
         else: 
             reactor.run()
         return True
-    
-class MainService(pluginapi.WindowsService):
-    '''
-    This is the main service definition for HouseAgent.
-    It takes care of running HouseAgent as Windows Service.
-    '''
-    svc_name = "hamain" 
-    svc_display_name = "HouseAgent - Main Service"
-    
-    def start(self):
-        main = MainWrapper()
-        main.start()
+
+if os.name == "nt": 
+    class MainService(pluginapi.WindowsService):
+        '''
+        This is the main service definition for HouseAgent.
+        It takes care of running HouseAgent as Windows Service.
+        '''
+        svc_name = "hamain" 
+        svc_display_name = "HouseAgent - Main Service"
+        
+        def start(self):
+            main = MainWrapper()
+            main.start()
 
 if __name__ == '__main__':
 
