@@ -54,7 +54,7 @@ class PluginConnection(ZmqConnection):
         '''
         Function called when a message has been received.
         @param msg: the message that has been received
-        '''       
+        '''     
         if msg[1] == '\x01':
             # Handle ready request
             if self.pluginapi.isready:
@@ -135,10 +135,10 @@ class PluginAPI(object):
         if message['type'] == 'custom':
             if self.custom_callback:
                 self.call_callback(self.custom_callback, message_id, message['action'], message['parameters'])
-        elif message['type'] == 'power_on':
+        elif message['type'] == 'poweron':
             if self.poweron_callback:
                 self.call_callback(self.poweron_callback, message_id, message['address'])
-        elif message['type'] == 'power_off':
+        elif message['type'] == 'poweroff':
             if self.poweroff_callback:
                 self.call_callback(self.poweroff_callback, message_id, message['address'])
         elif message['type'] == 'dim':
@@ -154,7 +154,6 @@ class PluginAPI(object):
         @param function: the function to call
         @param message_id: the message id associated with the RPC request
         '''
-        
         def cb_reply(result):
             message = [b'', chr(5), message_id, json.dumps(result)]
             print "Sending: %r" % (message)

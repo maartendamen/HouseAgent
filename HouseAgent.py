@@ -1,130 +1,75 @@
+import sys
+import os
 from houseagent.utils.config import Config
+from houseagent import config_path
 from houseagent.core.coordinator import Coordinator
 from houseagent.core.events import EventHandler
 from houseagent.core.web import Web
 from houseagent.core.database import Database
+from houseagent.core.databaseflash import DatabaseFlash
 from twisted.internet import reactor
-from houseagent.plugins.pluginapi import Logging
-from zmq.core.error import ZMQError
-import sys
-import os
-
-if os.name == "nt":
-    import win32service
-    import win32serviceutil
-    import win32event
-    import win32evtlogutil
-       
+from houseagent.plugins import pluginapi
+          
 class MainWrapper():
     '''
     This is the main wrapper for HouseAgent, this class takes care of starting all important
     core components for HouseAgent such as the event engine, network coordinator etc.
-    '''    
-    def __init__(self):
-
-        from houseagent.utils.generic import get_configurationpath
-        self.config_path = get_configurationpath()
-        
-        if os.path.exists(os.path.join(self.config_path, 'HouseAgent.conf')):
-            self.config = Config(os.path.join(self.config_path, "HouseAgent.conf"))
-            self.port = self.config.webserver.port
-            self.loglevel = self.config.general.loglevel
-            
-            # Get ZeroMQ information
-            self.broker_host = self.config.zmq.broker_host
-            self.broker_port = self.config.zmq.broker_port
-        else:
-            print "Configuration file not found! Make sure the configuration file is placed in the proper directory. For *nix: /etc/HouseAgent/, for Windows C:\Programdata\HouseAgent"
-            sys.exit()
-    
+    '''
     def start(self):     
      
-        self.log = Logging("Main")
-        self.log.set_level(self.loglevel)
+        self.log = pluginapi.Logging("Main")
+        self.log.set_level(config.general.loglevel)
         
         self.log.debug("Starting HouseAgent database layer...")
-        database = Database(self.log)
+        if config.embedded.enabled:
+            database = DatabaseFlash(self.log, config.embedded.db_save_interval)
+        else:
+            database = Database(self.log)
         
         self.log.debug("Starting HouseAgent coordinator...")
         coordinator = Coordinator(self.log, database)
 
-        coordinator.init_broker()
+        coordinator.init_broker(config.zmq.broker_host, config.zmq.broker_port)
         
         self.log.debug("Starting HouseAgent event handler...")
         event_handler = EventHandler(coordinator, database)
         
         self.log.debug("Starting HouseAgent web server...")
-        Web(self.port, coordinator, event_handler, database)
+        Web(config.webserver.port, coordinator, event_handler, database)
         
         if os.name == 'nt':
             reactor.run(installSignalHandlers=0)
         else: 
             reactor.run()
-        return True    
+        return True
 
-if os.name == "nt":    
-    
-    class HouseAgentService(win32serviceutil.ServiceFramework):
+if os.name == "nt": 
+    class MainService(pluginapi.WindowsService):
         '''
-        This class is a Windows Service handler, it's common to run
-        long running tasks in the background on a Windows system, as such we
-        use Windows services for HouseAgent
-        '''        
-        _svc_name_ = "hamain"
-        _svc_display_name_ = "HouseAgent - Main Service"
+        This is the main service definition for HouseAgent.
+        It takes care of running HouseAgent as Windows Service.
+        '''
+        svc_name = "hamain" 
+        svc_display_name = "HouseAgent - Main Service"
         
-        def __init__(self,args):
-            win32serviceutil.ServiceFramework.__init__(self,args)
-            self.hWaitStop=win32event.CreateEvent(None, 0, 0, None)
-            self.isAlive=True
-    
-        def SvcStop(self):
-            self.ReportServiceStatus(win32service.SERVICE_STOP_PENDING)
-            reactor.stop()
-            win32event.SetEvent(self.hWaitStop)
-            self.isAlive=False
-    
-        def SvcDoRun(self):
-            import servicemanager
-                   
-            win32evtlogutil.ReportEvent(self._svc_name_,servicemanager.PYS_SERVICE_STARTED,0,
-            servicemanager.EVENTLOG_INFORMATION_TYPE,(self._svc_name_, ''))
-    
-            self.timeout=1000  # In milliseconds (update every second)
-    
+        def start(self):
             main = MainWrapper()
-            
-            # Fix working directory, Python Windows service bug
-            current_dir = os.path.dirname(sys.executable)
-            os.chdir(current_dir)
-                        
-            if main.start():
-                win32event.WaitForSingleObject(self.hWaitStop, win32event.INFINITE) 
-    
-            win32evtlogutil.ReportEvent(self._svc_name_,servicemanager.PYS_SERVICE_STOPPED,0,
-                                        servicemanager.EVENTLOG_INFORMATION_TYPE,(self._svc_name_, ''))
-    
-            self.ReportServiceStatus(win32service.SERVICE_STOPPED)
-    
-            return
+            main.start()
 
 if __name__ == '__main__':
-    
+
+    if os.path.exists(os.path.join(config_path, 'HouseAgent.conf')):
+        config = Config(os.path.join(config_path, 'HouseAgent.conf'))
+    else:
+        print "Configuration file not found! Make sure the configuration file is placed in the proper directory. For *nix: /etc/HouseAgent/, for Windows C:\Programdata\HouseAgent"
+        sys.exit()
+
     if os.name == "nt":
-        if len(sys.argv) == 1:
-            try:
-        
-                import servicemanager, winerror
-                evtsrc_dll = os.path.abspath(servicemanager.__file__)
-                servicemanager.PrepareToHostSingle(HouseAgentService)
-                servicemanager.Initialize('HouseAgentService', evtsrc_dll)
-                servicemanager.StartServiceCtrlDispatcher()
-        
-            except win32service.error, details:
-                if details[0] == winerror.ERROR_FAILED_SERVICE_CONTROLLER_CONNECT:
-                    win32serviceutil.usage()
-        else:    
-            win32serviceutil.HandleCommandLine(HouseAgentService)
+        if config.general.runasservice:
+            pluginapi.handle_windowsservice(MainService) # We want to start as a Windows service on Windows.
+        else:
+            main = MainWrapper()
+            main.start() 
     else:
         main = MainWrapper()
         main.start()
