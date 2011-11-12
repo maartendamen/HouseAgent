@@ -1,5 +1,6 @@
 import sys
 import os
+import signal
 from houseagent.utils.config import Config
 from houseagent import config_path
 from houseagent.core.coordinator import Coordinator
@@ -9,7 +10,7 @@ from houseagent.core.database import Database
 from houseagent.core.databaseflash import DatabaseFlash
 from twisted.internet import reactor
 from houseagent.plugins import pluginapi
-          
+
 class MainWrapper():
     '''
     This is the main wrapper for HouseAgent, this class takes care of starting all important
@@ -17,7 +18,8 @@ class MainWrapper():
     '''
     def start(self):     
      
-        self.log = pluginapi.Logging("Main")
+        self.log = pluginapi.Logging("Main", config.general.logsize, \
+            config.general.logcount, config.general.logconsole)
         self.log.set_level(config.general.loglevel)
         
         self.log.debug("Starting HouseAgent database layer...")
@@ -33,9 +35,10 @@ class MainWrapper():
         
         self.log.debug("Starting HouseAgent event handler...")
         event_handler = EventHandler(coordinator, database)
-        
+ 
         self.log.debug("Starting HouseAgent web server...")
-        Web(config.webserver.port, coordinator, event_handler, database)
+        Web(self.log, config.webserver.host, config.webserver.port, \
+            config.webserver.backlog, coordinator, event_handler, database)
         
         if os.name == 'nt':
             reactor.run(installSignalHandlers=0)
@@ -56,13 +59,14 @@ if os.name == "nt":
             main = MainWrapper()
             main.start()
 
+
 if __name__ == '__main__':
 
     if os.path.exists(os.path.join(config_path, 'HouseAgent.conf')):
         config = Config(os.path.join(config_path, 'HouseAgent.conf'))
     else:
         print "Configuration file not found! Make sure the configuration file is placed in the proper directory. For *nix: /etc/HouseAgent/, for Windows C:\Programdata\HouseAgent"
-        sys.exit()
+        sys.exit(1)
 
     if os.name == "nt":
         if config.general.runasservice:

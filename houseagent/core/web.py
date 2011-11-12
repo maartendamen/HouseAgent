@@ -1,3 +1,4 @@
+import sys
 import houseagent
 import datetime
 import json
@@ -10,6 +11,7 @@ from pyrrd.rrd import RRD
 from mako.lookup import TemplateLookup
 from twisted.internet import defer
 from twisted.internet.defer import inlineCallbacks
+from twisted.internet.error import CannotListenError
 from twisted.web.resource import Resource
 from twisted.web.server import NOT_DONE_YET
 from uuid import uuid4
@@ -20,7 +22,7 @@ class Web(object):
     All management functions to control HouseAgent take place from here.
     '''
     
-    def __init__(self, port, coordinator, eventengine, database):
+    def __init__(self, log, host, port, backlog, coordinator, eventengine, database):
         '''
         Initialize the web interface.
         @param port: the port on which the web server should listen
@@ -28,7 +30,10 @@ class Web(object):
         @param eventengine: an instance of the event engine in order to interact with it
         @param database: an instance of the database layer in order to interact with it
         '''
-        self.port = port # web server 0listening port
+        self.log = log # logging instance
+        self.host = host # web server interface
+        self.port = port # web server listening port
+        self.backlog = backlog # size of the listen queue
         self.coordinator = coordinator
         self.eventengine = eventengine
         self.db = database
@@ -92,7 +97,11 @@ class Web(object):
         # Load plugin pages
         self.load_pages(root)
         
-        reactor.listenTCP(self.port, site)
+        try:
+            reactor.listenTCP(self.port, site, self.backlog, self.host)
+        except CannotListenError,e:
+            self.log.critical("HouseAgent web server: %s" % e)
+            sys.exit(1)
 
     def load_pages(self, root):
         '''

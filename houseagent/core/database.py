@@ -54,7 +54,7 @@ class Database():
         if float(version) > float(dbversion):
             self.log.error("ERROR: The current database schema (%s) is not supported by this version of HouseAgent" % version)
             # Exit HouseAgent
-            sys.exit()
+            sys.exit(1)
         
         elif float(version) == float(dbversion):
             self.log.debug("Database schema is up to date")

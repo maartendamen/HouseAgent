@@ -243,6 +243,8 @@ class Logging():
             self.logger.setLevel(logging.WARNING)
         elif level == 'error':
             self.logger.setLevel(logging.ERROR)
+        elif level == 'critical':
+            self.logger.setLevel(logging.CRITICAL)
         elif level == 'info':
             self.logger.setLevel(logging.INFO)
         elif level == 'none':
@@ -275,6 +277,13 @@ class Logging():
         @param message: the message to log.
         '''        
         twisted_log.msg(message, logLevel=logging.DEBUG)
+
+    def critical(self, message):
+        '''
+        This function allows you to log a plugin debug message.
+        @param message: the message to log.
+        '''        
+        twisted_log.msg(message, logLevel=logging.CRITICAL)
 
 if os.name == "nt":        
     class WindowsService(win32serviceutil.ServiceFramework):

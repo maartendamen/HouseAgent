@@ -50,15 +50,25 @@ class _ConfigGeneral:
                 parser.get, "general", "logpath", None)
         self.loglevel = _getOpt(
                 parser.get, "general", "loglevel", "debug")
+        self.logsize = _getOpt(
+                parser.getint, "general", "logsize", 1024)
+        self.logcount = _getOpt(
+                parser.getint, "general", "logcount", 5)
+        self.logconsole = _getOpt(
+                parser.getboolean, "general", "logconsole", True)
         self.runasservice = _getOpt(
-                                    parser.getboolean, "general", "runasservice", False)
+                parser.getboolean, "general", "runasservice", False)
 
 
 class _ConfigWebserver:
 
     def __init__(self, parser):
+        self.host = _getOpt(
+                parser.get, "webserver", "host", "")
         self.port = _getOpt(
                 parser.getint, "webserver", "port", 8080)
+        self.backlog = _getOpt(
+                parser.getint, "webserver", "backlog", 30)
 
 
 class _ConfigZMQ:
