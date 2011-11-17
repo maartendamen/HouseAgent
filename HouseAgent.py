@@ -1,7 +1,6 @@
-import sys
 import os
 from houseagent.utils.config import Config
-from houseagent import config_path
+from houseagent import config_file
 from houseagent.core.coordinator import Coordinator
 from houseagent.core.events import EventHandler
 from houseagent.core.web import Web
@@ -22,9 +21,9 @@ class MainWrapper():
         
         self.log.debug("Starting HouseAgent database layer...")
         if config.embedded.enabled:
-            database = DatabaseFlash(self.log, config.embedded.db_save_interval)
+            database = DatabaseFlash(self.log, config.general.dbfile, config.embedded.db_save_interval)
         else:
-            database = Database(self.log)
+            database = Database(self.log, config.general.dbfile)
         
         self.log.debug("Starting HouseAgent coordinator...")
         coordinator = Coordinator(self.log, database)
@@ -58,11 +57,7 @@ if os.name == "nt":
 
 if __name__ == '__main__':
 
-    if os.path.exists(os.path.join(config_path, 'HouseAgent.conf')):
-        config = Config(os.path.join(config_path, 'HouseAgent.conf'))
-    else:
-        print "Configuration file not found! Make sure the configuration file is placed in the proper directory. For *nix: /etc/HouseAgent/, for Windows C:\Programdata\HouseAgent"
-        sys.exit()
+    config = Config(config_file)
 
     if os.name == "nt":
         if config.general.runasservice:

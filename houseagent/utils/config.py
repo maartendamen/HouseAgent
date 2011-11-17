@@ -1,5 +1,7 @@
 import error
 import ConfigParser
+import os
+import sys
 
 def _getOpt(get, section, option, default = None):
     res = default
@@ -46,13 +48,58 @@ class Config:
 class _ConfigGeneral:
 
     def __init__(self, parser):
+        if os.name == 'nt':
+            from win32com.shell import shellcon, shell
+            programdata = os.path.join(shell.SHGetFolderPath(0, shellcon.CSIDL_COMMON_APPDATA, 0, 0), 'HouseAgent')      
+        
         self.logpath = _getOpt(
                 parser.get, "general", "logpath", None)
+
+        if self.logpath != None:
+            self.logpath = self.logpath
+        else:
+            if os.name == 'nt':
+                if hasattr(sys, 'frozen'):
+                    # Special case for binary Windows version
+                    self.logpath = os.path.join(programdata, 'logs')
+                elif os.path.exists(os.path.join(programdata, 'logs')):
+                    self.logpath = os.path.join(programdata, 'logs')
+                elif os.path.exists(os.path.join(os.getcwd(), 'logs')):
+                    # development
+                    self.logpath = os.path.join(os.getcwd(), 'logs')
+            else:
+                logpath = os.path.join(os.sep, 'var', 'log', 'HouseAgent')
+                
+                if os.path.exists(logpath):
+                    self.logpath = logpath
+                elif os.path.exists(os.path.join(os.getcwd(), 'logs')):
+                    self.logpath = os.path.join(os.getcwd(), 'logs')        
+        
         self.loglevel = _getOpt(
                 parser.get, "general", "loglevel", "debug")
         self.runasservice = _getOpt(
                                     parser.getboolean, "general", "runasservice", False)
-
+        
+        dbpath = _getOpt(parser.get, "general", "dbpath", None)
+        if dbpath != None:
+            self.dbfile = os.path.join(dbpath, 'houseagent.db')
+        else:
+            if os.name == 'nt':
+                if hasattr(sys, 'frozen'):
+                    # Special case for binary Windows version
+                    self.db_file = os.path.join(programdata, 'houseagent.db')
+                elif os.path.exists(os.path.join(programdata, 'houseagent.db')):
+                    self.db_file = os.path.join(programdata, 'houseagent.db')
+                elif os.path.exists(os.path.join(os.getcwd(), 'houseagent.db')):
+                    # development
+                    self.db_file = os.path.join(os.getcwd(), 'houseagent.db')
+            else:
+                db_file = os.path.join(os.sep, 'etc', 'houseagent.db')
+                
+                if os.path.exists(db_file):
+                    self.db_file = db_file
+                elif os.path.exists(os.path.join(os.getcwd(), 'houseagent.db')):
+                    self.db_file = os.path.join(os.getcwd(), 'houseagent.db')
 
 class _ConfigWebserver:
 

@@ -21,14 +21,14 @@ class DatabaseFlash(Database):
     object. Then, "in-memory" values are saved back to the current_values table whenever a
     query is launched from the web or periodically 
     '''              
-    def __init__(self, log, interval):
+    def __init__(self, log, db_location, interval):
         '''
         Class constructor
         
         @param log: logging object
         @param interval: elapsed seconds between periodic data saves (cache to database)
         '''
-        Database.__init__(self, log)
+        Database.__init__(self, log, db_location)
         # Create list of current values
         self.curr_values = CurrentValueTable(self.dbpool)
 
