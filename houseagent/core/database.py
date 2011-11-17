@@ -6,6 +6,7 @@ import datetime
 import time
 import os.path, sys
 import shutil
+import sqlite3 # Fix needed for PyInstaller.
 
 class Database():
     """
