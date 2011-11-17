@@ -48,8 +48,8 @@ if os.name == "nt":
         This is the main service definition for HouseAgent.
         It takes care of running HouseAgent as Windows Service.
         '''
-        svc_name = "hamain" 
-        svc_display_name = "HouseAgent - Main Service"
+        _svc_name_ = "hamain" 
+        _svc_display_name_ = "HouseAgent - Main Service"
         
         def start(self):
             main = MainWrapper()
