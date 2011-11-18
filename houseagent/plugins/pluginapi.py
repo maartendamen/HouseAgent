@@ -4,6 +4,7 @@ import logging.handlers
 import sys
 import json
 import time
+from houseagent.utils.config import Config
 if os.name == "nt":
     import win32serviceutil
     import win32event
@@ -16,9 +17,9 @@ if os.name == "nt":
         pass        
 from twisted.python import log as twisted_log
 from twisted.internet import reactor, task, defer
-from houseagent import log_path
 from txZMQ import ZmqFactory, ZmqEndpoint, ZmqConnection, ZmqEndpointType
 from zmq.core import constants
+from houseagent import config_file
 
 class PluginConnection(ZmqConnection):        
     '''
@@ -214,15 +215,16 @@ class Logging():
         observer = twisted_log.PythonLoggingObserver()
         observer.start()
         
+        # Get logpath
+        config = Config(config_file)
+        
         # Regular Python logging module
         self.logger = logging.getLogger()
-        log_handler = logging.handlers.RotatingFileHandler(filename = os.path.join(log_path, "%s.log" % name), 
-                                                       maxBytes = maxkbytes * 1024,
-                                                       backupCount = count)
+        log_handler = logging.handlers.RotatingFileHandler(filename = os.path.join(config.general.logpath, "%s.log" % name), maxBytes = config.general.logsize * 1024, backupCount = config.general.logcount)
         
         formatter = logging.Formatter('%(asctime)s %(levelname)s: %(message)s')
         
-        if console:
+        if config.general.logconsole:
             console_handler = logging.StreamHandler(sys.stdout) 
             console_handler.setFormatter(formatter)
         
@@ -277,10 +279,9 @@ class Logging():
         @param message: the message to log.
         '''        
         twisted_log.msg(message, logLevel=logging.DEBUG)
-
     def critical(self, message):
         '''
-        This function allows you to log a plugin debug message.
+        This function allows you to log a plugin critical message.
         @param message: the message to log.
         '''        
         twisted_log.msg(message, logLevel=logging.CRITICAL)

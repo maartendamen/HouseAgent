@@ -19,3 +19,15 @@ class ConfigError(Error):
     def __repr__(self):
         return("<ConfigError for parameter \"%s\" (wrong or undefined)>"\
                 % (self.identifier))
+
+class ConfigFileNotFound(Error):
+    '''
+    Configuration file not found error message.
+    '''
+    def __init__(self, identifier):
+        Error.__init__(self)
+        self.identifier = identifier
+
+    def __repr__(self):
+        return("<Configuration file not found in any of the following known locations: \"%s\">"\
+                % (self.identifier))   

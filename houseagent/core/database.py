@@ -5,14 +5,14 @@ from twisted.internet.defer import inlineCallbacks, returnValue
 import datetime
 import time
 import os.path, sys
-from houseagent import db_location
 import shutil
+import sqlite3 # Fix needed for PyInstaller.
 
 class Database():
     """
     HouseAgent database interaction.
     """
-    def __init__(self, log):
+    def __init__(self, log, db_location):
         self.log = log
 
         type = "sqlite"
