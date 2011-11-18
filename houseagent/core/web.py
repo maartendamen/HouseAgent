@@ -30,7 +30,6 @@ class Web(object):
         @param eventengine: an instance of the event engine in order to interact with it
         @param database: an instance of the database layer in order to interact with it
         '''
-        self.log = log # logging instance
         self.host = host # web server interface
         self.port = port # web server listening port
         self.backlog = backlog # size of the listen queue
@@ -100,7 +99,7 @@ class Web(object):
         try:
             reactor.listenTCP(self.port, site, self.backlog, self.host)
         except CannotListenError,e:
-            self.log.critical("HouseAgent web server: %s" % e)
+            log.critical("--> %s" % e)
             sys.exit(1)
 
     def load_pages(self, root):
@@ -115,14 +114,14 @@ class Web(object):
         
         for dir in plugin_dirs:
             if os.path.isdir(os.path.join(plugin_dir, dir)):
-                print "Plugin directory found, directory: %s" % dir
+                log.debug("--> Plugin directory found, directory: %s" % dir)
                 try:
                     file, pathname, description = imp.find_module("pages", [os.path.join(plugin_dir, dir)])                
                     mod = imp.load_module("pages", file, pathname, description)
                     mod.init_pages(root, self.coordinator, self.db)
-                    print "Loaded pages for plugin %s" % dir
+                    log.debug("--> Loaded pages for plugin %s" % dir)
                 except:
-                    print "Warning cannot load pages module for %s, no pages.py file?" % dir
+                    log.warning("--> Warning cannot load pages module for %s, no pages.py file?" % dir)
 
 class Root(Resource):
     '''
@@ -144,7 +143,7 @@ class Plugin_add(Resource):
     def queryresult(self, result):
         lookup = TemplateLookup(directories=[houseagent.template_dir])
         template = lookup.get_template('plugin_add.html')
-        self.request.write( str( template.render(locations=result) ) ) 
+        self.request.write(str(template.render(locations=result))) 
         self.request.finish()
     
     def render_GET(self, request):
