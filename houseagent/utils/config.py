@@ -55,7 +55,7 @@ class _ConfigGeneral:
         self.logpath = _getOpt(
                 parser.get, "general", "logpath", None)
 
-        if self.logpath != None:
+        if self.logpath != None and self.logpath != "":
             self.logpath = self.logpath
         else:
             if os.name == 'nt':
@@ -81,25 +81,25 @@ class _ConfigGeneral:
                                     parser.getboolean, "general", "runasservice", False)
         
         dbpath = _getOpt(parser.get, "general", "dbpath", None)
-        if dbpath != None:
+        if dbpath != None and dbpath != "":
             self.dbfile = os.path.join(dbpath, 'houseagent.db')
         else:
             if os.name == 'nt':
                 if hasattr(sys, 'frozen'):
                     # Special case for binary Windows version
-                    self.db_file = os.path.join(programdata, 'houseagent.db')
+                    self.dbfile = os.path.join(programdata, 'houseagent.db')
                 elif os.path.exists(os.path.join(programdata, 'houseagent.db')):
-                    self.db_file = os.path.join(programdata, 'houseagent.db')
+                    self.dbfile = os.path.join(programdata, 'houseagent.db')
                 elif os.path.exists(os.path.join(os.getcwd(), 'houseagent.db')):
                     # development
-                    self.db_file = os.path.join(os.getcwd(), 'houseagent.db')
+                    self.dbfile = os.path.join(os.getcwd(), 'houseagent.db')
             else:
-                db_file = os.path.join(os.sep, 'etc', 'houseagent.db')
+                dbfile = os.path.join(os.sep, 'etc', 'houseagent.db')
                 
-                if os.path.exists(db_file):
-                    self.db_file = db_file
+                if os.path.exists(dbfile):
+                    self.dbfile = dbfile
                 elif os.path.exists(os.path.join(os.getcwd(), 'houseagent.db')):
-                    self.db_file = os.path.join(os.getcwd(), 'houseagent.db')
+                    self.dbfile = os.path.join(os.getcwd(), 'houseagent.db')
 
 class _ConfigWebserver:
 

@@ -13,6 +13,7 @@ from twisted.internet.defer import inlineCallbacks
 from twisted.web.resource import Resource
 from twisted.web.server import NOT_DONE_YET
 from uuid import uuid4
+import sys
             
 class Web(object):
     '''
@@ -101,7 +102,10 @@ class Web(object):
         plugins/<pluginname>/ folder.
         @return: an array of loaded modules
         '''
-        plugin_dir = os.path.join(os.path.dirname(houseagent.__file__), "plugins")
+        if hasattr(sys, 'frozen'):
+            plugin_dir = os.path.join(os.path.dirname(sys.executable), "plugins")
+        else:
+            plugin_dir = os.path.join(os.path.dirname(houseagent.__file__), "plugins")
         plugin_dirs = os.listdir(plugin_dir)
         
         for dir in plugin_dirs:
