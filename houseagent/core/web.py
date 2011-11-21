@@ -36,6 +36,8 @@ class Web(object):
         self.coordinator = coordinator
         self.eventengine = eventengine
         self.db = database
+        
+        self.log = log
 
         root = Resource()
         site = Site(root)
@@ -109,19 +111,22 @@ class Web(object):
         plugins/<pluginname>/ folder.
         @return: an array of loaded modules
         '''
-        plugin_dir = os.path.join(os.path.dirname(houseagent.__file__), "plugins")
+        if hasattr(sys, 'frozen'):
+            plugin_dir = os.path.join(os.path.dirname(sys.executable), "plugins")
+        else:
+            plugin_dir = os.path.join(os.path.dirname(houseagent.__file__), "plugins")
         plugin_dirs = os.listdir(plugin_dir)
         
         for dir in plugin_dirs:
             if os.path.isdir(os.path.join(plugin_dir, dir)):
-                log.debug("--> Plugin directory found, directory: %s" % dir)
+                self.log.debug("--> Plugin directory found, directory: %s" % dir)
                 try:
                     file, pathname, description = imp.find_module("pages", [os.path.join(plugin_dir, dir)])                
                     mod = imp.load_module("pages", file, pathname, description)
                     mod.init_pages(root, self.coordinator, self.db)
-                    log.debug("--> Loaded pages for plugin %s" % dir)
+                    self.log.debug("--> Loaded pages for plugin %s" % dir)
                 except:
-                    log.warning("--> Warning cannot load pages module for %s, no pages.py file?" % dir)
+                    self.log.warning("--> Warning cannot load pages module for %s, no pages.py file?" % dir)
 
 class Root(Resource):
     '''
