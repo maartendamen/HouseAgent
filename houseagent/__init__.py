@@ -55,3 +55,7 @@ if hasattr(sys, 'frozen'):
     template_plugin_dir = os.path.join(os.path.dirname(sys.executable), 'plugins')
 else:
     template_plugin_dir = os.path.join(os.path.dirname(__file__), 'plugins')
+    
+""" Generic value names """
+HA_TEMPERATURE = 'Temperature'
+HA_HUMIDITY = 'Humidity'

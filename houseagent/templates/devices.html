@@ -8,27 +8,39 @@
     <script language='javascript'>
         $(document).ready(function() {
         
-            var parents = eval($.ajax({url: '/locations', async: false, success: function(data, result) {if (!result) alert('Failure to retrieve locations.');}}).responseText);           
-            var parents_list = ":None;";
+            var locations = eval($.ajax({url: '/locations', async: false, success: function(data, result) {if (!result) alert('Failure to retrieve locations.');}}).responseText);           
+            var locations_list = ":None;";
             var first = true;
-            $.each(parents, function(i, item){
+            $.each(locations, function(i, item){
                 if (first) {
                     first = false;
-                    parents_list += item.id + ":" + item.name;
+                    locations_list += item.id + ":" + item.name;
                 } else {
-                    parents_list += ";" + item.id + ":" + item.name;
+                    locations_list += ";" + item.id + ":" + item.name;
+                }                
+            });
+            
+            var plugins = eval($.ajax({url: '/plugins', async: false, success: function(data, result) {if (!result) alert('Failure to retrieve plugins.');}}).responseText);           
+            var plugins_list = "";
+            var first = true;
+            $.each(plugins, function(i, item){
+                if (first) {
+                    first = false;
+                    plugins_list += item.id + ":" + item.name;
+                } else {
+                    plugins_list += ";" + item.id + ":" + item.name;
                 }                
             });
                                 
-            jQuery("#plugins").jqGrid({
-                url:'/plugins',
+            jQuery("#devices").jqGrid({
+                url:'/devices',
                 datatype: "json",
-                colNames:['Plugin name','Auth code (GUID)','Location', 'Status'],
+                colNames:['Device name','Device address','Plugin', 'Location'],
                 colModel:[
                     {name:'name',index:'name', width:220,editable:true,editoptions:{size:20}},
-                    {name:'authcode',index:'authcode', width:220,editable:false,editoptions:{size:20}},
+                    {name:'address',index:'address', width:220,editable:true,editoptions:{size:20}},
+                    {name:'plugin',index:'plugin', width:110,editable:true, edittype: "select" ,editoptions:{size:10}},
                     {name:'location',index:'location', width:110,editable:true, edittype: "select" ,editoptions:{size:10}},
-                    {name:'status',index:'status', width:110,editable:false,editoptions:{size:20},formatter:statusFormatter},
                 ],
                 rowNum:10,
                 rowList:[10,20,30],
@@ -37,7 +49,7 @@
                 viewrecords: true,
                 sortorder: "desc",
                 caption:"HouseAgent plugins",
-                editurl:"plugins",
+                editurl:"devices",
                 height:300,
                 width:850,
                 jsonReader: {
@@ -49,15 +61,16 @@
                     records: function (obj) { return obj.length; }
                 },
                 loadComplete: function() {
-                    $("#plugins").setColProp('location', { editoptions: { value: parents_list} });
+                    $("#devices").setColProp('location', { editoptions: { value: locations_list} });
+                    $("#devices").setColProp('plugin', { editoptions: { value: plugins_list} });
                 },                                
             });
             
-			$("#plugins").jqGrid('navGrid', '#pagernav',
+			$("#devices").jqGrid('navGrid', '#pagernav',
 			    {edit: true, search: false}, 
 			    { // Edit parameters
 			        mtype: "PUT",
-			        url: "plugins",
+			        url: "devices",
 			        width: 380,
 			    }, {width: 380},
 			    { // Delete parameters
@@ -66,25 +79,16 @@
 			            return ""; // don't send and body for the HTTP DELETE
 			        },
 			        onclickSubmit: function (params, postdata) {
-			            params.url = '/plugins/' + encodeURIComponent(postdata);
+			            params.url = '/devices/' + encodeURIComponent(postdata);
 			        }
 			    });
-        });
-        
-		function statusFormatter (cellvalue, options, rowObject)
-		{
-		  if (cellvalue == false) {
-		      return '<font color="red"><b>Offline</b></font>'
-		  } else {
-		      return '<font color="green"><b>Online</b></font>'
-		  }
-		}        
+        });    
 
     </script>
 </%def>
 <%def name="content()">
-<div class="HeadText">HouseAgent plugins</div>
-<p>This page allows management of the plugins created in the HouseAgent database.</p>
-<table id="plugins"></table>
+<div class="HeadText">HouseAgent devices</div>
+<p>This page allows management of the devices created in the HouseAgent database.</p>
+<table id="devices"></table>
 <div id="pagernav"></div>  
 </%def>

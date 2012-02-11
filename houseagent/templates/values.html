@@ -1,0 +1,88 @@
+<%inherit file="/master.html"/>
+
+<%def name="head()">
+    <link rel="stylesheet" type="text/css" media="screen" href="/css/ui.jqgrid.css" />
+    <script src="/js/grid.locale-en.js" type="text/javascript"></script>
+    <script type="text/javascript" src="/js/jquery.jqGrid.min.js"></script>
+
+    <script language='javascript'>
+        $(document).ready(function() {
+
+            var history_types = eval($.ajax({url: '/history_types', async: false, success: function(data, result) {if (!result) alert('Failure to retrieve history_types.');}}).responseText);           
+            var history_types_list = "";
+            var first = true;
+            $.each(history_types, function(i, item){
+                if (first) {
+                    first = false;
+                    history_types_list += item.id + ":" + item.name;
+                } else {
+                    history_types_list += ";" + item.id + ":" + item.name;
+                }                
+            });
+                                
+            jQuery("#values").jqGrid({
+                url:'/values',
+                datatype: "json",
+                colNames:['Value name','Status','Device name', 'Device address', 'Location', 'Plugin', 'Last update', 'History', 'History Heartbeat', 'Control type'],
+                colModel:[
+                    {name:'name',index:'name', width:100,editable:false,editoptions:{size:20}},
+                    {name:'value',index:'value', width:100,editable:false,editoptions:{size:20}},
+                    {name:'device',index:'device', width:100,editable:false,editoptions:{size:20}},
+                    {name:'device_address',index:'device_address', width:100,editable:false,editoptions:{size:20}},
+                    {name:'location',index:'location', width:100,editable:false,editoptions:{size:20}},
+                    {name:'plugin',index:'plugin', width:100,editable:false,editoptions:{size:20}},
+                    {name:'lastupdate',index:'lastupdate', width:100,editable:false,editoptions:{size:20}},
+                    {name:'history',index:'history', width:100,editable:true,edittype: "select", editoptions:{size:20}},
+                    {name:'history_heartbeat',index:'history_heartbeat',width:100,editable:true,editoptions:{size:20}},
+                    {name:'control_type',index:'control_type', width:100,editable:false,editoptions:{size:20}},
+                ],
+                rowNum:10,
+                rowList:[10,20,30],
+                pager: '#pagernav',
+                sortname: 'id',
+                viewrecords: true,
+                sortorder: "desc",
+                caption:"HouseAgent values",
+                height:300,
+                autowidth:true,
+                jsonReader: {
+                    repeatitems: false,
+                    id: "id",
+                    root: function (obj) { return obj; },
+                    page: function (obj) { return 1; },
+                    total: function (obj) { return 1; },
+                    records: function (obj) { return obj.length; }
+                },    
+                loadComplete: function() {
+                    $("#values").setColProp('history', { editoptions: { value: history_types_list} });
+                },                                             
+            });
+            
+			$("#values").jqGrid('navGrid', '#pagernav',
+			    {add:false, edit: true, search: false}, 
+			    { // Edit parameters
+			        mtype: "PUT",
+			        url: "devices",
+			        width: 380,
+			    }, {width: 380},
+			    { // Delete parameters
+			        mtype: "DELETE",
+			        serializeDelData: function () {
+			            return ""; // don't send and body for the HTTP DELETE
+			        },
+			        onclickSubmit: function (params, postdata) {
+			            params.url = '/values/' + encodeURIComponent(postdata);
+			        }
+			    });
+        });    
+
+        setInterval(function(){jQuery("#values").trigger("reloadGrid");}, 5000);
+
+    </script>
+</%def>
+<%def name="content()">
+<div class="HeadText">HouseAgent values</div>
+<p>This page allows management and overview of the values created in the HouseAgent database.</p>
+<table id="values"></table>
+<div id="pagernav"></div>  
+</%def>

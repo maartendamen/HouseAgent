@@ -1,52 +1,22 @@
 <items>
-    <item name="Locations" url="/locations" image="/images/room_icon.png">
-        <subitem>
-            <name>Add location</name>
-            <url>/location_add</url>
-            <description>This adds a location to the HouseAgent database.</description>
-        </subitem>
-        <subitem>
-            <name>Manage locations</name>
-            <url>/locations</url>
-            <description>This manages locations in the HouseAgent database.</description>
-        </subitem>           
+    <item name="Locations" url="/locations_view" image="/images/room_icon.png">         
     </item>
-	<item name="Plugins" url="/plugin_status" image="/images/plugin_icon.png">
-		<subitem>
-			<name>Register plugin</name>
-			<url>/plugin_add</url>
-			<description>This registers a new plugin in the network.</description>
-		</subitem>
-		<subitem>
-			<name>Plugin status</name>
-			<url>/plugin_status</url>
-			<description>This shows an status overview of all the plugins in the network.</description>
-		</subitem>	
-        <subitem>
-            <name>Manage plugins</name>
-            <url>/plugins</url>
-            <description>This manages plugins in the HouseAgent database.</description>
-        </subitem>   	
+	<item name="Plugins" url="/plugins_view" image="/images/plugin_icon.png">	
 	</item>
-	<item name="Devices" url="#devices" image="/images/device_icon.png">
-		<subitem>
-			<name>Add device</name>
-			<url>/device_add</url>
-			<description>This adds a new device to the HouseAgent database.</description>
-		</subitem>
+	<item name="Devices" url="/devices_view" image="/images/device_icon.png">
 		<subitem>
 			<name>Device control</name>
 			<url>/control</url>
 			<description>This page lists information about lighting and control devices, this basically is any device that has a controlable function.</description>
 		</subitem>
 		<subitem>
-			<name>Device overview</name>
-			<url>/device_list</url>
+			<name>Values overview</name>
+			<url>/values_view</url>
 			<description>This displays an overview of all the devices in the database. (Current status etc.)</description>
 		</subitem>
 		<subitem>
 			<name>Manage devices</name>
-			<url>/device_man</url>
+			<url>/devices_view</url>
 			<description>This page allows management of the devices created in the HouseAgent database.</description>
 		</subitem>		
 	</item>
