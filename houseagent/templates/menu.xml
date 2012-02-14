@@ -1,9 +1,22 @@
 <items>
-    <item name="Locations" url="/locations_view" image="/images/room_icon.png">         
+    <item name="Management" url="#" image="/images/manage.png">
+        <subitem>
+            <name>Manage locations</name>
+            <url>/locations_view</url>
+            <description>This page allows you to manage HouseAgent locations.</description>
+        </subitem>   
+        <subitem>
+            <name>Manage plugins</name>
+            <url>/plugins_view</url>
+            <description>This page allows management of HouseAgent plugins.</description>
+        </subitem>         
+        <subitem>
+            <name>Manage devices</name>
+            <url>/devices_view</url>
+            <description>This page allows management of the devices created in the HouseAgent database.</description>
+        </subitem>  
     </item>
-	<item name="Plugins" url="/plugins_view" image="/images/plugin_icon.png">	
-	</item>
-	<item name="Devices" url="/devices_view" image="/images/device_icon.png">
+	<item name="View and control" url="#" image="/images/view_icon.png">
 		<subitem>
 			<name>Device control</name>
 			<url>/control</url>
@@ -13,12 +26,7 @@
 			<name>Values overview</name>
 			<url>/values_view</url>
 			<description>This displays an overview of all the devices in the database. (Current status etc.)</description>
-		</subitem>
-		<subitem>
-			<name>Manage devices</name>
-			<url>/devices_view</url>
-			<description>This page allows management of the devices created in the HouseAgent database.</description>
-		</subitem>		
+		</subitem>	
 	</item>
 	<item name="Events" url="#events" image="/images/event_icon.png">
 		<subitem>
