@@ -62,7 +62,8 @@ div#OutsidePadding {
 }
 
 .Menu {
-	border-bottom: 7px solid #05386D;
+	/*border-bottom: 7px solid #05386D;*/
+	border-bottom: 5px solid #000000;
 }
 
 .HeadText {
