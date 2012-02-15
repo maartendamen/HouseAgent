@@ -31,7 +31,7 @@
                     {name:'device_address',index:'device_address', width:100,editable:false,editoptions:{size:20}},
                     {name:'location',index:'location', width:100,editable:false,editoptions:{size:20}},
                     {name:'plugin',index:'plugin', width:100,editable:false,editoptions:{size:20}},
-                    {name:'lastupdate',index:'lastupdate', width:100,editable:false,editoptions:{size:20}},
+                    {name:'lastupdate',index:'lastupdate', width:120,editable:false,editoptions:{size:20}},
                     {name:'history',index:'history', width:100,editable:true,edittype: "select", editoptions:{size:20}},
                     {name:'history_heartbeat',index:'history_heartbeat',width:100,editable:true,editoptions:{size:20}},
                     {name:'control_type',index:'control_type', width:100,editable:false,editoptions:{size:20}},
@@ -76,7 +76,7 @@
 			    });
         });    
 
-        setInterval(function(){jQuery("#values").trigger("reloadGrid");}, 5000);
+        setInterval(function(){jQuery("#values").trigger("reloadGrid");}, 10000);
 
     </script>
 </%def>
