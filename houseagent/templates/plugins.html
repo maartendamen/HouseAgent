@@ -23,19 +23,20 @@
             jQuery("#plugins").jqGrid({
                 url:'/plugins',
                 datatype: "json",
-                colNames:['Plugin name','Auth code (GUID)','Location', 'Status'],
+                colNames:['Plugin name','Auth code (GUID)','Location', 'Status', ''],
                 colModel:[
                     {name:'name',index:'name', width:220,editable:true,editoptions:{size:20}},
                     {name:'authcode',index:'authcode', width:220,editable:false,editoptions:{size:20}},
                     {name:'location',index:'location', width:110,editable:true, edittype: "select" ,editoptions:{size:10}},
                     {name:'status',index:'status', width:110,editable:false,editoptions:{size:20},formatter:statusFormatter},
+		    {name: 'act', width:70, fixed:true, sortable:false, resize:false, formatter:'actions', formatoptions:{keys:true}}
                 ],
                 rowNum:10,
                 rowList:[10,20,30],
                 pager: '#pagernav',
-                sortname: 'id',
-                viewrecords: true,
+                sortname: 'name',
                 sortorder: "desc",
+                viewrecords: true,
                 caption:"HouseAgent plugins",
                 editurl:"plugins",
                 height:300,
@@ -54,7 +55,7 @@
             });
             
 			$("#plugins").jqGrid('navGrid', '#pagernav',
-			    {edit: true, search: false}, 
+			    {edit: false, del: false, search: false}, 
 			    { // Edit parameters
 			        mtype: "PUT",
 			        url: "plugins",
@@ -70,6 +71,7 @@
 			        }
 			    });
         });
+
         
 		function statusFormatter (cellvalue, options, rowObject)
 		{
