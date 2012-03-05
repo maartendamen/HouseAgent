@@ -10,11 +10,13 @@ from twisted.web.static import File
 from pyrrd.rrd import RRD
 from mako.lookup import TemplateLookup
 from twisted.internet import defer
-from twisted.internet.defer import inlineCallbacks
+from twisted.internet.defer import inlineCallbacks, returnValue
 from twisted.internet.error import CannotListenError
 from twisted.web.resource import Resource
 from twisted.web.server import NOT_DONE_YET
+from twisted.web.error import NoResource
 from uuid import uuid4
+from twisted.web import http
             
 class Web(object):
     '''
@@ -45,24 +47,23 @@ class Web(object):
         # Main page
         root.putChild("", Root())
         
-        # Room management
-        root.putChild("location_add", Location_add(self.db))
-        root.putChild("location_added", Location_added(self.db))
-        root.putChild("locations", Locations(self.db))
-        root.putChild("location_del", Location_del(self.db))
-        root.putChild("location_edit", Location_edit(self.db))
-        root.putChild("location_edited", Location_edited(self.db))
+        # Location management
+        root.putChild('locations', Locations(self.db))
+        root.putChild('locations_view', Locations_view())
         
         # Plugin management
-        root.putChild("plugin_add", Plugin_add(self.db))
-        root.putChild("plugin_add_do", Plugin_add_do(self.coordinator, self.db))
-        root.putChild("plugin_status", Plugin_status(self.coordinator, self.db))
-        root.putChild("plugins", Plugins(self.db))
-        root.putChild("plugin_del", Plugin_del(self.db))
-        root.putChild("plugin_edit", Plugin_edit(self.db))
-        root.putChild("plugin_edited", Plugin_edited(self.db))
+        root.putChild('plugins', Plugins(self.db, self.coordinator))
+        root.putChild('plugins_view', Plugins_view())
         
         # Device management
+        root.putChild('devices', Devices(self.db))
+        root.putChild('devices_view', Devices_view())
+        
+        # Value management
+        root.putChild('values', Values(self.db))
+        root.putChild('values_view', Values_view())
+        root.putChild('history_types', HistoryTypes(self.db)) 
+        
         root.putChild("device_add", Device_add(self.db))
         root.putChild("device_save", Device_save(self.db))
         root.putChild("device_list", Device_list(self.db))
@@ -125,7 +126,7 @@ class Web(object):
                     mod = imp.load_module("pages", file, pathname, description)
                     mod.init_pages(root, self.coordinator, self.db)
                     self.log.debug("--> Loaded pages for plugin %s" % dir)
-                except:
+                except ImportError:
                     self.log.warning("--> Warning cannot load pages module for %s, no pages.py file?" % dir)
 
 class Root(Resource):
@@ -136,6 +137,403 @@ class Root(Resource):
         lookup = TemplateLookup(directories=[houseagent.template_dir])
         template = lookup.get_template('index.html')
         return str(template.render())
+    
+class HouseAgentREST(Resource):
+    '''
+    This class implements a basic REST interface.
+    '''
+    def __init__(self, db):
+        Resource.__init__(self)
+        self.db = db
+        self._load()
+        self._objects = []
+    
+    # functions that must be implemented
+    def _load(self):
+        raise NotImplementedError
+    
+    def _add(self, **kwargs):
+        raise NotImplementedError
+    
+    def _edit(self, **kwargs):
+        raise NotImplementedError
+        
+    # internal functions
+    def render_GET(self, request):
+        output = []
+        for obj in self._objects:
+            output.append(obj.json())
+
+        return json.dumps(output)
+    
+    def _done(self):
+        self.request.finish()
+        
+    def _reload(self):
+        self._objects = []
+        self._load()
+    
+    def render_POST(self, request):
+        self.request = request
+        self._add(request.args)
+        return NOT_DONE_YET
+    
+    def render_PUT(self, request):
+        self.request = request
+        self._edit(http.parse_qs(request.content.read(), 1)) # http://twistedmatrix.com/pipermail/twisted-web/2007-March/003338.html
+        return NOT_DONE_YET
+           
+    def getChild(self, name, request):
+        for obj in self._objects:
+            if name == str(obj.id):
+                return obj
+            
+        return NoResource(message="The resource %s was not found" % request.URLPath())
+
+class Location(Resource):
+    '''
+    This object represents a Location.
+    '''
+    def __init__(self, id, name, parent_name, parent):
+        Resource.__init__(self)
+        self.id = id
+        self.name = name
+        self.parent_name = parent_name
+        self.parent = parent
+        
+    def json(self):
+        return {'id': self.id, 'name': self.name, 'parent': self.parent_name}
+    
+    def render_GET(self, request):
+        return json.dumps(self.json())
+    
+    def render_DELETE(self, request):
+        self.request = request
+        self.parent.delete(self)
+        return NOT_DONE_YET
+
+class Locations(HouseAgentREST):
+
+    @inlineCallbacks            
+    def _load(self):
+        '''
+        Load locations from the database.
+        '''
+        self._objects = []
+        location_query = yield self.db.query_locations()
+        
+        for location in location_query:
+            loc = Location(location[0], location[1], location[2], self)
+            self._objects.append(loc)
+    
+    @inlineCallbacks
+    def _add(self, parameters):
+        try:
+            parent = parameters['parent'][0]
+        except KeyError:
+            parent = None
+        
+        yield self.db.add_location(parameters['name'][0], parent)
+        self._reload()
+        self._done()
+    
+    @inlineCallbacks
+    def _edit(self, parameters):
+        try:
+            parent = parameters['parent'][0]
+            if parent == '':
+                parent = None
+        except KeyError:
+            parent = None
+        
+        yield self.db.update_location(parameters['id'][0], parameters['name'][0], parent)
+        self._reload()
+        self._done()
+    
+    @inlineCallbacks
+    def delete(self, obj):
+        yield self.db.del_location(int(obj.id))
+        self._objects.remove(obj)
+        obj.request.finish()
+
+class Locations_view(Resource):
+    
+    def render_GET(self, request):
+        lookup = TemplateLookup(directories=[houseagent.template_dir])
+        template = lookup.get_template('locations.html')
+        return str(template.render())
+
+class Plugin(Resource):
+    '''
+    This object represents a Plugin.
+    '''
+    def __init__(self, id, name, authcode, location, parent):
+        Resource.__init__(self)
+        self.id = id
+        self.name = name
+        self.authcode = authcode
+        self.location = location
+        self.parent = parent
+        self.status = False
+        
+    def json(self):
+        return {'id': self.id, 'name': self.name, 'authcode': self.authcode, 'location': self.location, 'status': self.status}
+    
+    def render_GET(self, request):
+        return json.dumps(self.json())
+    
+    def render_DELETE(self, request):
+        self.request = request
+        self.parent.delete(self)
+        return NOT_DONE_YET
+    
+class Plugins(HouseAgentREST):
+
+    def __init__(self, db, coordinator):
+        HouseAgentREST.__init__(self, db)
+        self.coordinator = coordinator
+        
+    def render_GET(self, request):
+        ''' 
+        This gets overriden in order to support online/offline status
+        '''
+        output = []
+        for obj in self._objects:
+            for p in self.coordinator.plugins:
+                if p.guid == obj.authcode:
+                    obj.status = p.online            
+            
+            output.append(obj.json())
+
+        return json.dumps(output)
+
+    @inlineCallbacks            
+    def _load(self):
+        '''
+        Load plugins from the database.
+        '''
+        self._objects = []
+        plugin_query = yield self.db.query_plugins()
+        
+        for plugin in plugin_query:
+            plug = Plugin(plugin[2], plugin[0], plugin[1], plugin[3], self)
+            self._objects.append(plug)
+    
+    @inlineCallbacks
+    def _add(self, parameters):
+        try:
+            location = parameters['location'][0]
+        except KeyError:
+            location = None
+            
+        uuid = uuid4()    
+        yield self.db.register_plugin(parameters['name'][0], uuid, location)
+        self._reload()
+        self._done()
+    
+    @inlineCallbacks
+    def _edit(self, parameters):
+        try:
+            location = parameters['location'][0]
+        except KeyError:
+            location = None
+        
+        yield self.db.update_plugin(parameters['id'][0], parameters['name'][0], location)
+        self._reload()
+        self._done()
+    
+    @inlineCallbacks
+    def delete(self, obj):
+        yield self.db.del_plugin(int(obj.id))
+        self._objects.remove(obj)
+        obj.request.finish()
+        
+class Plugins_view(Resource):
+    
+    def render_GET(self, request):
+        lookup = TemplateLookup(directories=[houseagent.template_dir])
+        template = lookup.get_template('plugins.html')
+        return str(template.render())
+
+class Device(Resource):
+    '''
+    This object represents a Device.
+    '''
+    def __init__(self, id, name, address, plugin, location, parent):
+        Resource.__init__(self)
+        self.id = id
+        self.name = name
+        self.address = address
+        self.plugin = plugin
+        self.location = location
+        self.parent = parent
+        
+    def json(self):
+        return {'id': self.id, 'name': self.name, 'address': self.address, 'plugin': self.plugin, 'location': self.location}
+    
+    def render_GET(self, request):
+        return json.dumps(self.json())
+    
+    def render_DELETE(self, request):
+        self.request = request
+        self.parent.delete(self)
+        return NOT_DONE_YET
+    
+class Devices(HouseAgentREST):
+
+    @inlineCallbacks            
+    def _load(self):
+        '''
+        Load plugins from the database.
+        '''
+        self._objects = []
+        device_query = yield self.db.query_devices()
+        
+        for device in device_query:
+            dev = Device(device[0], device[1], device[2], device[3], device[4], self)
+            self._objects.append(dev)
+    
+    @inlineCallbacks
+    def _add(self, parameters):  
+        yield self.db.save_device(parameters['name'][0], parameters['address'][0], parameters['plugin'][0], parameters['location'][0])
+        self._reload()
+        self._done()
+    
+    @inlineCallbacks
+    def _edit(self, parameters):       
+        yield self.db.set_history(parameters['id'][0], parameters['history_heartbeat'][0], parameters['history'][0])
+        self._reload()
+        self._done()
+    
+    @inlineCallbacks
+    def delete(self, obj):
+        yield self.db.del_device(int(obj.id))
+        self._objects.remove(obj)
+        obj.request.finish()
+        
+class Devices_view(Resource):
+    
+    def render_GET(self, request):
+        lookup = TemplateLookup(directories=[houseagent.template_dir])
+        template = lookup.get_template('devices.html')
+        return str(template.render())
+
+class Value(Resource):
+    '''
+    This object represents a Value.
+    '''
+    def __init__(self, id, name, value, device, device_address, location, plugin, lastupdate, history, history_heartbeat, control_type):
+        Resource.__init__(self)
+        self.id = id
+        self.name = name
+        self.value = value
+        self.device = device
+        self.device_address = device_address
+        self.location = location
+        self.plugin = plugin
+        self.lastupdate = lastupdate
+        self.history = history
+        self.history_heartbeat = history_heartbeat
+        self.control_type = control_type
+        
+    def json(self):
+        return {'id': self.id, 'name': self.name, 'value': self.value, 'device': self.device, 'device_address': self.device_address,
+                'location': self.location, 'plugin': self.plugin, 'lastupdate': self.lastupdate, 'history': self.history,
+                'control_type': self.control_type, 'history_heartbeat': self.history_heartbeat}
+    
+    def render_GET(self, request):
+        return json.dumps(self.json())
+    
+    def render_DELETE(self, request):
+        self.request = request
+        self.parent.delete(self)
+        return NOT_DONE_YET
+    
+class Values(HouseAgentREST):
+
+    def render_GET(self, request):
+        self._objects = []
+        self._load().addCallback(self.done)
+
+        self.request = request
+
+        return NOT_DONE_YET
+    
+    def done(self, result):
+    
+        output = []
+        for obj in self._objects:
+            output.append(obj.json())
+
+        self.request.write(json.dumps(output))
+        self.request.finish()
+    
+    @inlineCallbacks            
+    def _load(self):
+        '''
+        Load plugins from the database.
+        '''
+        self._objects = []
+        value_query = yield self.db.query_values()
+        
+        for value in value_query:
+            val = Value(value[7], value[0], value[1], value[2], value[5], value[6], value[4], value[3], value[10], value[11], value[8])
+            self._objects.append(val)
+    
+    @inlineCallbacks
+    def _add(self, parameters):  
+        yield self.db.save_device(parameters['name'][0], parameters['address'][0], parameters['plugin'][0], parameters['location'][0])
+        self._reload()
+        self._done()
+    
+    @inlineCallbacks
+    def _edit(self, parameters):       
+        yield self.db.save_device(parameters['name'][0], parameters['address'][0], parameters['plugin'][0], 
+                                  parameters['location'][0], parameters['id'][0])
+        self._reload()
+        self._done()
+    
+    @inlineCallbacks
+    def delete(self, obj):
+        yield self.db.del_device(int(obj.id))
+        self._objects.remove(obj)
+        obj.request.finish()
+        
+class Values_view(Resource):
+    
+    def render_GET(self, request):
+        lookup = TemplateLookup(directories=[houseagent.template_dir])
+        template = lookup.get_template('values.html')
+        return str(template.render())
+
+class HistoryType(Resource):
+    '''
+    This object represents a HistoryType.
+    '''
+    def __init__(self, id, name):
+        Resource.__init__(self)
+        self.id = id
+        self.name = name
+        
+    def json(self):
+        return {'id': self.id, 'name': self.name}
+    
+    def render_GET(self, request):
+        return json.dumps(self.json())
+
+class HistoryTypes(HouseAgentREST):
+    
+    @inlineCallbacks            
+    def _load(self):
+        '''
+        Load plugins from the database.
+        '''
+        self._objects = []
+        history_type_query = yield self.db.query_history_types()
+        
+        for history_type in history_type_query:
+            hist = HistoryType(history_type[0], history_type[1])
+            self._objects.append(hist)    
 
 class Plugin_add(Resource):
     '''
@@ -615,123 +1013,7 @@ class Control_stat(Resource):
         self.coordinator.send_thermostat_setpoint(plugin, address, temp).addCallback(self.control_result)
                     
         return NOT_DONE_YET    
-    
-class Location_add(Resource):
-    '''
-    Class that adds a room to the database.
-    '''
-    def __init__(self, database):
-        Resource.__init__(self)
-        self.db = database 
-    
-    def got_locations(self, result):
-        lookup = TemplateLookup(directories=[houseagent.template_dir])
-        template = lookup.get_template('location_add.html')
-        
-        print result
-        
-        self.request.write( str( template.render(locations=result) ) ) 
-        self.request.finish()        
-    
-    def render_GET(self, request): 
-        self.request = request       
-        self.db.query_locations().addCallback(self.got_locations)
-        return NOT_DONE_YET
-        
-class Location_added(Resource):
-    '''
-    Class that actually adds a room to the database, and gives a callback to the caller.
-    '''
-    def __init__(self, database):
-        Resource.__init__(self)
-        self.db = database     
-    
-    def room_added(self, result):
-        self.request.write(str("success"))
-        self.request.finish()
-    
-    def render_POST(self, request):
-        self.request = request
-              
-        name = request.args["name"][0]
-        try:
-            parent = request.args["parent"][0]
-        except KeyError:
-            parent = None
-       
-        self.db.add_location(name, parent).addCallback(self.room_added)
-        return NOT_DONE_YET
-    
-class Locations(Resource):
-    '''
-    Class that shows all the rooms in the database, and that allows room management.
-    '''
-    def __init__(self, database):
-        Resource.__init__(self)
-        self.db = database 
-    
-    def result(self, result):
-        lookup = TemplateLookup(directories=[houseagent.template_dir])
-        template = lookup.get_template('locations.html')
-        
-        self.request.write(str(template.render(result=result)))
-        self.request.finish()
-    
-    def render_GET(self, request):
-        self.request = request
-        self.db.query_locations().addCallback(self.result)
-        return NOT_DONE_YET
-    
-class Location_del(Resource):
-    '''
-    Class that handles deletion of locations from the database.
-    '''
-    def __init__(self, database):
-        Resource.__init__(self)
-        self.db = database     
-    
-    def location_deleted(self, result):
-        self.request.write(str("done!"))
-        self.request.finish()
-    
-    def render_POST(self, request):
-        self.request = request              
-        id = request.args["id"][0]
-        
-        self.db.del_location(int(id)).addCallback(self.location_deleted)
-        return NOT_DONE_YET
-    
-class Location_edit(Resource):
-    '''
-    Class that edits a location.
-    '''
-    def __init__(self, database):
-        Resource.__init__(self)
-        self.db = database 
-    
-    def location_result(self, result):
-        lookup = TemplateLookup(directories=[houseagent.template_dir])
-        template = lookup.get_template('location_edit.html')
-        
-        self.request.write( str( template.render(locations=result[0], loc=result[1]) ) ) 
-        self.request.finish()            
-        
-    def error(self, errorcode):
-        print "ERROR: ", errorcode
-    
-    def render_GET(self, request):
-        self.request = request
-        id = request.args["id"][0]
-        
-        deferredlist = []
-        deferredlist.append(self.db.query_locations())
-        deferredlist.append(self.db.query_location(int(id)))
-        
-        d = defer.gatherResults(deferredlist)
-        d.addCallbacks(self.location_result)
-        
-        return NOT_DONE_YET
-    
+ 
 class History(Resource):
     '''
     This turns value history on or off.
@@ -801,25 +1083,25 @@ class Location_edited(Resource):
         self.db.update_location(id, name, parent).addCallback(self.location_updated)
         return NOT_DONE_YET        
     
-class Plugins(Resource):
-    '''
-    Class that shows all the plugins in the database, and that allows plugin management.
-    '''
-    def __init__(self, database):
-        Resource.__init__(self)
-        self.db = database    
-    
-    def result(self, result):
-        lookup = TemplateLookup(directories=[houseagent.template_dir])
-        template = lookup.get_template('plugins.html')
-        
-        self.request.write(str(template.render(result=result)))
-        self.request.finish()
-    
-    def render_GET(self, request):
-        self.request = request
-        self.db.query_plugins().addCallback(self.result)
-        return NOT_DONE_YET
+#class Plugins(Resource):
+#    '''
+#    Class that shows all the plugins in the database, and that allows plugin management.
+#    '''
+#    def __init__(self, database):
+#        Resource.__init__(self)
+#        self.db = database    
+#    
+#    def result(self, result):
+#        lookup = TemplateLookup(directories=[houseagent.template_dir])
+#        template = lookup.get_template('plugins.html')
+#        
+#        self.request.write(str(template.render(result=result)))
+#        self.request.finish()
+#    
+#    def render_GET(self, request):
+#        self.request = request
+#        self.db.query_plugins().addCallback(self.result)
+#        return NOT_DONE_YET
 
 class Plugin_del(Resource):
     '''

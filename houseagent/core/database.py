@@ -18,6 +18,7 @@ class Database():
         type = "sqlite"
 
         self.coordinator = None
+        self._db_location = db_location
 
         # Note: cp_max=1 is required otherwise undefined behaviour could occur when using yield icw subsequent
         # runQuery or runOperation statements
@@ -65,7 +66,7 @@ class Database():
 
             # Before we start manipulating the database schema, first make a backup copy of the database
             try:
-                shutil.copy(db_location, db_location + datetime.datetime.strftime(datetime.datetime.now(), ".%y%m%d-%H%M%S"))
+                shutil.copy(self._db_location, self._db_location + datetime.datetime.strftime(datetime.datetime.now(), ".%y%m%d-%H%M%S"))
             except:
                 self.log.error("Cannot make a backup copy of the database (%s)", sys.exc_info()[1])
                 return
@@ -295,7 +296,7 @@ class Database():
         except:
             returnValue('') # device does not exist
         
-        current_value = yield self.dbpool.runQuery("select id, name, history from current_values where name=? AND device_id=? LIMIT 1", (name, device_id))
+        current_value = yield self.dbpool.runQuery("select id, name, history_type_id, history_heartbeat from current_values where name=? AND device_id=? LIMIT 1", (name, device_id))
     
         try:
             value_id = current_value[0][0]
@@ -305,8 +306,11 @@ class Database():
         if value_id:
             value_id = current_value[0][0]
             
-            if current_value[0][2] not in (0, None):
-                DataHistory("data", current_value[0][0], value, "GAUGE", 60, int(time))
+            history_type = current_value[0][2]
+            history_heartbeat = current_value[0][3]
+            
+            if history_type == 1:
+                DataHistory("data", current_value[0][0], value, "GAUGE", history_heartbeat, int(time))
                 
             yield self.dbpool.runQuery("UPDATE current_values SET value=?, lastupdate=? WHERE id=?", (value, updatetime, value_id))
         else:
@@ -421,10 +425,11 @@ class Database():
     def query_values(self):
         return self.dbpool.runQuery("SELECT current_values.name, current_values.value, devices.name, " + 
                                "current_values.lastupdate, plugins.name, devices.address, locations.name, current_values.id" + 
-                               ", control_types.name, control_types.id, history FROM current_values INNER " +
+                               ", control_types.name, control_types.id, history_types.name, current_values.history_heartbeat FROM current_values INNER " +
                                "JOIN devices ON (current_values.device_id = devices.id) INNER JOIN plugins ON (devices.plugin_id = plugins.id) " + 
                                "LEFT OUTER JOIN locations ON (devices.location_id = locations.id) " + 
-                               "LEFT OUTER JOIN control_types ON (current_values.control_type_id = control_types.id)")
+                               "LEFT OUTER JOIN control_types ON (current_values.control_type_id = control_types.id) " +
+                               "LEFT OUTER JOIN history_types ON (current_values.history_type_id = history_types.id)")
 
     def query_devices(self):      
         return self.dbpool.runQuery("SELECT devices.id, devices.name, devices.address, plugins.name, locations.name from devices " +
@@ -464,7 +469,10 @@ class Database():
         return self.dbpool.runQuery("SELECT id, name from plugin_types")
 
     def query_historic_values(self):
-        return self.dbpool.runQuery("select current_values.id, current_values.name, devices.name, current_values.history from current_values, devices where current_values.device_id = devices.id and history = 1;")
+        return self.dbpool.runQuery("select current_values.id, current_values.name, devices.name, current_values.history_type_id from current_values, devices where current_values.device_id = devices.id and history_type_id > 0;")
+
+    def query_history_types(self):
+        return self.dbpool.runQuery("SELECT id, name from history_types")
 
     def query_controllable_devices(self):
         return self.dbpool.runQuery("SELECT devices.name, devices.address, plugins.name, plugins.authcode, current_values.value, devices.id, control_types.name FROM current_values " +
@@ -499,8 +507,8 @@ class Database():
                                     "inner join devices on (current_values.device_id = devices.id) " + 
                                     "where current_values.id = ?", [value_id])
 
-    def set_history(self, id, history):
-        return self.dbpool.runQuery("UPDATE current_values SET history=? WHERE id=?", [history, id])
+    def set_history(self, id, history_interval, history_type):
+        return self.dbpool.runQuery("UPDATE current_values SET history_heartbeat=?, history_type_id=? WHERE id=?", [history_interval, history_type, id])
     
     def set_controltype(self, id, control_type):
         return self.dbpool.runQuery("UPDATE current_values SET control_type_id=? WHERE id=?", [control_type, id])
