@@ -1,4 +1,3 @@
-from pyrrd.rrd import RRD, RRA, DS
 from twisted.enterprise.adbapi import ConnectionPool
 from twisted.internet import defer
 from twisted.internet.defer import inlineCallbacks, returnValue
@@ -18,6 +17,7 @@ class Database():
         type = "sqlite"
 
         self.coordinator = None
+        self.histcollector = None
         self._db_location = db_location
 
         # Note: cp_max=1 is required otherwise undefined behaviour could occur when using yield icw subsequent
@@ -26,7 +26,7 @@ class Database():
             self.dbpool = ConnectionPool("sqlite3", db_location, check_same_thread=False, cp_max=1)
        
         # Check database schema version and upgrade when required
-        self.updatedb('0.1')
+        self.updatedb('0.2')
              
     def updatedb(self, dbversion):
         '''
@@ -87,6 +87,79 @@ class Database():
                     txn.execute("CREATE UNIQUE INDEX device_address ON devices (address, plugin_id)")
                     txn.execute("INSERT INTO devices SELECT id, name, address, plugin_id, location_id FROM devices_backup")
                     txn.execute("DROP TABLE devices_backup")
+
+                    self.log.info("Successfully upgraded database schema")
+                except:
+                    self.log.error("Database schema upgrade failed (%s)" % sys.exc_info()[1])
+
+            elif version == '0.1':
+                # update DB schema version to '0.2'
+                try:
+                    # update common table
+                    txn.execute("UPDATE common SET parm_value=0.2 WHERE parm='schema_version';")
+
+                    # history_periods table
+                    txn.execute("CREATE TABLE history_periods(id integer PRIMARY KEY AUTOINCREMENT NOT NULL,\
+                                name varchar(20), secs integer NOT NULL, sysflag CHAR(1) NOT NULL DEFAULT '0');")
+                    # default values for history_periods table
+                    txn.execute("INSERT INTO history_periods VALUES(1,'Disabled',0,'1');")
+                    txn.execute("INSERT INTO history_periods VALUES(2,'5 min',300,'1');")
+                    txn.execute("INSERT INTO history_periods VALUES(3,'15 min',900,'1');")
+                    txn.execute("INSERT INTO history_periods VALUES(4,'30 min',1800,'1');")
+                    txn.execute("INSERT INTO history_periods VALUES(5,'1 hour',3600,'1');")
+                    txn.execute("INSERT INTO history_periods VALUES(6,'2 hours',7200,'1');")
+                    txn.execute("INSERT INTO history_periods VALUES(7,'8 hours',28800,'1');")
+                    txn.execute("INSERT INTO history_periods VALUES(8,'12 hours',43200,'1');")
+                    txn.execute("INSERT INTO history_periods VALUES(9,'1 day',86400,'1');")
+
+                    # history_types table
+                    txn.execute("CREATE TABLE history_types (id integer PRIMARY KEY AUTOINCREMENT NOT NULL, \
+                                name  varchar(50));")
+                    # default values for history_types table
+                    txn.execute("INSERT INTO history_types VALUES (NULL, 'GAUGE');")
+                    txn.execute("INSERT INTO history_types VALUES (NULL, 'COUNTER');")
+
+                    txn.execute("CREATE TEMPORARY TABLE current_values_tmp( \
+                                id integer PRIMARY KEY AUTOINCREMENT NOT NULL, \
+                                name varchar(45), value varchar(45), device_id integer NOT NULL, \
+                                lastupdate datetime, history bool DEFAULT 0, \
+                                history_type_id integer, control_type_id integer DEFAULT 0);")
+                    txn.execute("INSERT INTO current_values_tmp \
+                                SELECT id, name, value, device_id, lastupdate, history, \
+                                history_type_id, control_type_id FROM current_values;")
+                    # create new current_values scheme (old data are purged)
+                    txn.execute("DROP TABLE current_values;")
+                    txn.execute("CREATE TABLE current_values(id integer PRIMARY KEY AUTOINCREMENT NOT NULL, \
+                                name varchar(45), value varchar(45), device_id integer NOT NULL, \
+                                lastupdate datetime, history_period_id  int DEFAULT 1, \
+                                history_type_id int DEFAULT 1, control_type_id  integer DEFAULT 0, \
+                                FOREIGN KEY (history_period_id) REFERENCES history_periods(id), \
+                                FOREIGN KEY (history_type_id) REFERENCES history_types(id), \
+                                FOREIGN KEY (device_id) REFERENCES devices(id));")
+                    # current_values indexes
+                    txn.execute("CREATE INDEX 'current_values.fk_current_values_control_types1' \
+                                    ON current_values (control_type_id);")
+                    txn.execute("CREATE INDEX 'current_values.fk_current_values_history_periods1' \
+                                    ON current_values (history_period_id);")
+                    txn.execute("CREATE INDEX 'current_values.fk_current_values_history_types1' \
+                                    ON current_values (history_type_id);")
+                    txn.execute("CREATE INDEX 'current_values.fk_values_devices1' \
+                                    ON current_values (device_id);")
+                    # fill new current_values table
+                    txn.execute("INSERT INTO current_values \
+                                SELECT id, name, value, device_id, lastupdate, 1, 1, control_type_id \
+                                FROM current_values_tmp;")
+                    txn.execute("DROP TABLE current_values_tmp;")
+
+                    # history_values table
+                    txn.execute("CREATE TABLE history_values (value_id integer,\
+                                value real, created_at datetime, \
+                                FOREIGN KEY (value_id) REFERENCES current_values(id));")
+
+                    txn.execute("CREATE INDEX 'history_values.idx_history_values_created_at1' \
+                                    ON history_values (created_at);")
+                    txn.execute("CREATE INDEX 'history_values.idx_history_values_value_id1' \
+                                    ON history_values (value_id);")
 
                     self.log.info("Successfully upgraded database schema")
                 except:
@@ -296,7 +369,7 @@ class Database():
         except:
             returnValue('') # device does not exist
         
-        current_value = yield self.dbpool.runQuery("select id, name, history_type_id, history_heartbeat from current_values where name=? AND device_id=? LIMIT 1", (name, device_id))
+        current_value = yield self.dbpool.runQuery("SELECT id, name, history_type_id, history_period_id FROM current_values WHERE name=? AND device_id=? LIMIT 1", (name, device_id))
     
         try:
             value_id = current_value[0][0]
@@ -307,15 +380,12 @@ class Database():
             value_id = current_value[0][0]
             
             history_type = current_value[0][2]
-            history_heartbeat = current_value[0][3]
+            history_period = current_value[0][3]
             
-            if history_type == 1:
-                DataHistory("data", current_value[0][0], value, "GAUGE", history_heartbeat, int(time))
-                
             yield self.dbpool.runQuery("UPDATE current_values SET value=?, lastupdate=? WHERE id=?", (value, updatetime, value_id))
         else:
-            yield self.dbpool.runQuery("INSERT INTO current_values (name, value, device_id, lastupdate) VALUES (?, ?, (select id from devices where address=? AND plugin_id=?),  ?)", (name, value, address, pluginid, updatetime))
-            current_value = yield self.dbpool.runQuery("select id from current_values where name=? AND device_id=?", (name, device_id))
+            yield self.dbpool.runQuery("INSERT INTO current_values (name, value, device_id, lastupdate) VALUES (?, ?, (SELECT id FROM devices WHERE address=? AND plugin_id=?),  ?)", (name, value, address, pluginid, updatetime))
+            current_value = yield self.dbpool.runQuery("SELECT id FROM current_values WHERE name=? AND device_id=?", (name, device_id))
             value_id = current_value[0][0]
                         
         returnValue(value_id)
@@ -425,11 +495,12 @@ class Database():
     def query_values(self):
         return self.dbpool.runQuery("SELECT current_values.name, current_values.value, devices.name, " + 
                                "current_values.lastupdate, plugins.name, devices.address, locations.name, current_values.id" + 
-                               ", control_types.name, control_types.id, history_types.name, current_values.history_heartbeat FROM current_values INNER " +
+                               ", control_types.name, control_types.id, history_types.name, history_periods.name FROM current_values INNER " +
                                "JOIN devices ON (current_values.device_id = devices.id) INNER JOIN plugins ON (devices.plugin_id = plugins.id) " + 
                                "LEFT OUTER JOIN locations ON (devices.location_id = locations.id) " + 
                                "LEFT OUTER JOIN control_types ON (current_values.control_type_id = control_types.id) " +
-                               "LEFT OUTER JOIN history_types ON (current_values.history_type_id = history_types.id)")
+                               "LEFT OUTER JOIN history_types ON (current_values.history_type_id = history_types.id) " +
+                               "LEFT OUTER JOIN history_periods ON (current_values.history_period_id = history_periods.id)")
 
     def query_devices(self):      
         return self.dbpool.runQuery("SELECT devices.id, devices.name, devices.address, plugins.name, locations.name from devices " +
@@ -468,11 +539,26 @@ class Database():
     def query_plugintypes(self):
         return self.dbpool.runQuery("SELECT id, name from plugin_types")
 
-    def query_historic_values(self):
-        return self.dbpool.runQuery("select current_values.id, current_values.name, devices.name, current_values.history_type_id from current_values, devices where current_values.device_id = devices.id and history_type_id > 0;")
-
+    # history collector stuff
     def query_history_types(self):
-        return self.dbpool.runQuery("SELECT id, name from history_types")
+        return self.dbpool.runQuery("SELECT id, name FROM history_types;")
+
+    def query_history_schedules(self):
+        return self.dbpool.runQuery("SELECT id, name, history_period_id, history_type_id FROM current_values;")
+
+    def query_history_periods(self):
+        return self.dbpool.runQuery("SELECT id, name, secs, sysflag FROM history_periods;")
+
+    def query_history_values(self, date_from, date_to):
+        return self.dbpool.runQuery("SELECT value_id, hist_type_id, value, created_at FROM history_valuesi WHERE created_at >= '?' AND created_at < '?';", [date_from, date_to])
+
+    def cleanup_history_values(self):
+        return self.dbpool.runQuery("DELETE FROM history_values WHERE created_at < DATETIME(DATETIME(), 'localtime', '-1 day');")
+
+    def collect_history_values(self, value_id):
+        return self.dbpool.runQuery("INSERT INTO history_values SELECT id, value, DATETIME(DATETIME(), 'localtime') FROM current_values WHERE id=?;", [value_id])
+
+    # /history collector stuff
 
     def query_controllable_devices(self):
         return self.dbpool.runQuery("SELECT devices.name, devices.address, plugins.name, plugins.authcode, current_values.value, devices.id, control_types.name FROM current_values " +
@@ -507,8 +593,17 @@ class Database():
                                     "inner join devices on (current_values.device_id = devices.id) " + 
                                     "where current_values.id = ?", [value_id])
 
-    def set_history(self, id, history_interval, history_type):
-        return self.dbpool.runQuery("UPDATE current_values SET history_heartbeat=?, history_type_id=? WHERE id=?", [history_interval, history_type, id])
+    def set_history(self, id, history_period, history_type):
+        # histcollector needs a fresh data -> defer the UPDATE
+        d = self.dbpool.runQuery("UPDATE current_values SET history_period_id=?, history_type_id=? WHERE id=?", [history_period, history_type, id])
+
+        # helper fn
+        def histcollector_refresh(result, id, history_period):
+            self.histcollector.cb_unregister_schedule(int(id))
+            self.histcollector.cb_register_schedule(int(id), history_period)
+
+        d.addCallback(histcollector_refresh, id, history_period)
+        return d
     
     def set_controltype(self, id, control_type):
         return self.dbpool.runQuery("UPDATE current_values SET control_type_id=? WHERE id=?", [control_type, id])
@@ -521,80 +616,3 @@ class Database():
     
     def query_events(self):
         return self.dbpool.runQuery("SELECT id, name, enabled from events")
-
-class DataHistory():
-    """
-    This class provides historic data logging capabilities for HouseAgent.
-    """
-    def __init__(self, value_name=None, value_id=None, value_value=None, type=None, heartbeat=None, time=None):
-        
-        self.value_name     = value_name
-        self.value_id       = value_id
-        self.type           = type
-        self.value_value    = value_value
-        self.heartbeat      = heartbeat
-        self.time           = time
- 
-        if not os.path.exists(os.path.join("history/", "%s.rrd" % self.value_id)):
-            print "RRD does not exist, create"
-            self.create()
-        else:
-            print "RRD exists, insert"
-            self.insert()
-        
-    def insert(self):
-        """ 
-        Inserts new data in the RRD database 
-        """
-        rrd = RRD(os.path.join("history/", "%s.rrd" % self.value_id))
-        rrd.bufferValue(self.time, self.value_value)
-        rrd.update()
-        print self.time, self.value_value
-        
-    def fetch(self, start=None, end=None, resolution=None):
-        """
-        Fetch data from the RRD database.
-        """
-        rrd = RRD("history/108732.rrd")
-        print rrd.fetch(resolution=300, start='-1h', end=self.epoch_now())         
-    
-    def create(self):
-        """ 
-        Creates a new RRD database 
-        """
-        ds1 = DS(dsName=self.value_name, dsType=self.type, heartbeat=self.heartbeat)
-        dss = [ds1]
-              
-        rras = []
-        # 1 days-worth of n heartbeat samples --> 60/1 * 24
-        rra1 = RRA(cf='AVERAGE', xff=0.5, steps=1, rows=int(self.heartbeat/1.0 * 24)) 
-        # 7 days-worth of n heartbeat samples --> 60/5 * 24 * 7
-        rra2 = RRA(cf='AVERAGE', xff=0.5, steps=5, rows=int(self.heartbeat/5.0 * 24 * 7))
-        # 30 days-worth of n heartbeat samples --> 60/60 * 24 * 30
-        rra3 = RRA(cf='AVERAGE', xff=0.5, steps=60, rows=int(self.heartbeat/60.0 * 24 * 30))
-        # 365 days worth of n heartbeat samples --> 60/120 * 24 * 365
-        rra4 = RRA(cf='AVERAGE', xff=0.5, steps=120, rows=int(self.heartbeat/120.0 * 24 * 365))
-        # 10 years worth of n heartbeat samples --> 60/180 * 24 * 365 * 10
-        rra5 = RRA(cf='AVERAGE', xff=0.5, steps=180, rows=int(self.heartbeat/180.0 * 24 * 365 * 10))
-        
-        rras.extend([rra1, rra2, rra3, rra4, rra5])
-
-        rrd = RRD(os.path.join("history/", "%s.rrd" % self.value_id), step=self.heartbeat, 
-                    ds=dss, rra=rras, start=self.time)
-        rrd.create(debug=False)
-
-    def epoch_now(self):
-        """ 
-        This is a little helper method which get's the current time in epoch seconds.
-        The datetime module really needs one... 
-        """
-        t = datetime.datetime.now()
-        return int(time.mktime(t.timetuple()))
-    
-# Testing
-#history = DataHistory('Temperature', '20202', 'GAUGE', 60)
-#history.create()
-
-# Test fetch
-#history = DataHistory(value_id=108732)       
-#history.fetch()

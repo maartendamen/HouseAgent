@@ -107,6 +107,10 @@ class _ConfigGeneral:
                 elif os.path.exists(os.path.join(os.getcwd(), 'houseagent.db')):
                     self.dbfile = os.path.join(os.getcwd(), 'houseagent.db')
 
+        # XXX: do it better
+        self.dbpatharchive = _getOpt(
+                parser.get, "general", "dbpatharchive", os.path.abspath("archive"))
+
 
 class _ConfigWebserver:
 

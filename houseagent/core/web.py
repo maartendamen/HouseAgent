@@ -63,6 +63,7 @@ class Web(object):
         root.putChild('values', Values(self.db))
         root.putChild('values_view', Values_view())
         root.putChild('history_types', HistoryTypes(self.db)) 
+        root.putChild('history_periods', HistoryPeriods(self.db)) 
         
         root.putChild("device_add", Device_add(self.db))
         root.putChild("device_save", Device_save(self.db))
@@ -401,7 +402,7 @@ class Devices(HouseAgentREST):
     
     @inlineCallbacks
     def _edit(self, parameters):       
-        yield self.db.set_history(parameters['id'][0], parameters['history_heartbeat'][0], parameters['history'][0])
+        yield self.db.set_history(parameters['id'][0], parameters['history_period'][0], parameters['history_type'][0])
         self._reload()
         self._done()
     
@@ -422,7 +423,7 @@ class Value(Resource):
     '''
     This object represents a Value.
     '''
-    def __init__(self, id, name, value, device, device_address, location, plugin, lastupdate, history, history_heartbeat, control_type):
+    def __init__(self, id, name, value, device, device_address, location, plugin, lastupdate, history_type, history_period, control_type):
         Resource.__init__(self)
         self.id = id
         self.name = name
@@ -432,14 +433,14 @@ class Value(Resource):
         self.location = location
         self.plugin = plugin
         self.lastupdate = lastupdate
-        self.history = history
-        self.history_heartbeat = history_heartbeat
+        self.history_type = history_type
+        self.history_period = history_period
         self.control_type = control_type
         
     def json(self):
         return {'id': self.id, 'name': self.name, 'value': self.value, 'device': self.device, 'device_address': self.device_address,
-                'location': self.location, 'plugin': self.plugin, 'lastupdate': self.lastupdate, 'history': self.history,
-                'control_type': self.control_type, 'history_heartbeat': self.history_heartbeat}
+                'location': self.location, 'plugin': self.plugin, 'lastupdate': self.lastupdate, 'history_type': self.history_type,
+                'control_type': self.control_type, 'history_period': self.history_period}
     
     def render_GET(self, request):
         return json.dumps(self.json())
@@ -526,7 +527,7 @@ class HistoryTypes(HouseAgentREST):
     @inlineCallbacks            
     def _load(self):
         '''
-        Load plugins from the database.
+        Load history types from the database.
         '''
         self._objects = []
         history_type_query = yield self.db.query_history_types()
@@ -534,6 +535,38 @@ class HistoryTypes(HouseAgentREST):
         for history_type in history_type_query:
             hist = HistoryType(history_type[0], history_type[1])
             self._objects.append(hist)    
+
+class HistoryPeriod(Resource):
+    '''
+    This object represents a HistoryPeriod.
+    '''
+    def __init__(self, id, name, secs, sysflag):
+        Resource.__init__(self)
+        self.id = id
+        self.name = name
+        self.secs = secs
+        self.sysflag = sysflag
+
+    def json(self):
+        return {"id": self.id, "name": self.name,
+                "secs": self.secs, "sysflag": self.sysflag}
+
+    def render_GET(self, request):
+        return json.dumps(self.json())
+
+class HistoryPeriods(HouseAgentREST):
+
+    @inlineCallbacks
+    def _load(self):
+        '''
+        Load history periods from the database.
+        '''
+        self._objects = []
+        history_period_query = yield self.db.query_history_periods()
+
+        for period in history_period_query:
+            hist = HistoryPeriod(period[0], period[1], period[2], period[3])
+            self._objects.append(hist)
 
 class Plugin_add(Resource):
     '''
