@@ -141,7 +141,6 @@ class Coordinator(object):
         found = False
 
         for plugin in self.plugins:
-            print plugin.guid
             if plugin.guid == payload[0]:
                 self.log.debug("Coordinator::Plugin found in database, setting status to online...")
                 found = True
@@ -302,7 +301,7 @@ class Coordinator(object):
         for plugin in plugins:
             p = Plugin(plugin[1], plugin[2], time.time(), plugin[4])
             self.plugins.append(p)
-            print plugin
+            self.log.debug("Loading plugin %s" % (plugin[0]))
            
     def plugin_id_by_guid(self, guid):
         '''
