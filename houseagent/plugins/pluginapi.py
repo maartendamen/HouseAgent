@@ -15,7 +15,7 @@ if os.name == "nt":
         win32eventreactor.install()
     except:
         pass        
-from twisted.python import log as twisted_log
+#from twisted.python import log as twisted_log
 from twisted.internet import reactor, task, defer
 from txZMQ import ZmqFactory, ZmqEndpoint, ZmqConnection, ZmqEndpointType
 from zmq.core import constants
@@ -211,27 +211,29 @@ class Logging():
         @param console: specifies whether or not to log to the console, this defaults to "True"
         '''
         
-        # Start Twisted python log observer
-        observer = twisted_log.PythonLoggingObserver()
-        observer.start()
-        
         # Get logpath
         config = Config(config_file)
         
         # Regular Python logging module
-        self.logger = logging.getLogger()
+        self.logger = logging.getLogger(name)
         log_handler = logging.handlers.RotatingFileHandler(filename = os.path.join(config.general.logpath, "%s.log" % name), maxBytes = config.general.logsize * 1024, backupCount = config.general.logcount)
-        
-        formatter = logging.Formatter('%(asctime)s %(levelname)s: %(message)s')
+
+        file_formatter = logging.Formatter('%(asctime)s %(levelname)s: %(message)s')
+        cli_formatter = logging.Formatter('%(asctime)s [%(name)s] %(levelname)s: %(message)s')
+
+        log_handler.setFormatter(file_formatter)
         
         if config.general.logconsole:
             console_handler = logging.StreamHandler(sys.stdout) 
-            console_handler.setFormatter(formatter)
-        
-        log_handler.setFormatter(formatter)
+            console_handler.setFormatter(cli_formatter)
         
         self.logger.addHandler(log_handler)
         self.logger.addHandler(console_handler)
+        self.set_level(config.general.loglevel)
+
+    # reuse of Logging.log function
+    def log(self, message, logLevel):
+        self.logger.log(logLevel, message)
         
     def set_level(self, level):        
         '''
@@ -257,34 +259,40 @@ class Logging():
         This function allows you to log a plugin error message.
         @param message: the message to log.
         '''
-        twisted_log.msg(message, logLevel=logging.ERROR)
+        #twisted_log.msg(message, logLevel=logging.ERROR)
+        self.log(message, logLevel=logging.ERROR)
         
     def warning(self, message):
         '''
         This function allows you to log a plugin warning message.
         @param message: the message to log.
         '''
-        twisted_log.msg(message, logLevel=logging.WARNING)
+        #twisted_log.msg(message, logLevel=logging.WARNING)
+        self.log(message, logLevel=logging.WARNING)
 
     def info(self, message):
         '''
         This function allows you to log a plugin info message.
         @param message: the message to log.
         '''
-        twisted_log.msg(message, logLevel=logging.INFO)
+        #twisted_log.msg(message, logLevel=logging.INFO)
+        self.log(message, logLevel=logging.INFO)
     
     def debug(self, message):
         '''
         This function allows you to log a plugin debug message.
         @param message: the message to log.
         '''        
-        twisted_log.msg(message, logLevel=logging.DEBUG)
+        #twisted_log.msg(message, logLevel=logging.DEBUG)
+        self.log(message, logLevel=logging.DEBUG)
+
     def critical(self, message):
         '''
         This function allows you to log a plugin critical message.
         @param message: the message to log.
         '''        
-        twisted_log.msg(message, logLevel=logging.CRITICAL)
+        #twisted_log.msg(message, logLevel=logging.CRITICAL)
+        self.log(message, logLevel=logging.CRITICAL)
 
 if os.name == "nt":        
     class WindowsService(win32serviceutil.ServiceFramework):
