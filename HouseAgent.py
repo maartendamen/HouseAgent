@@ -3,6 +3,7 @@ from houseagent.utils.config import Config
 from houseagent import config_file
 from houseagent.core.coordinator import Coordinator
 from houseagent.core.events import EventHandler
+from houseagent.core.history import HistoryCollector, HistoryAggregator
 from houseagent.core.web import Web
 from houseagent.core.database import Database
 from houseagent.core.databaseflash import DatabaseFlash
@@ -17,7 +18,6 @@ class MainWrapper():
     def start(self):     
      
         self.log = pluginapi.Logging("Main")
-        self.log.set_level(config.general.loglevel)
         
         self.log.debug("Starting HouseAgent database layer...")
         if config.embedded.enabled:
@@ -32,7 +32,13 @@ class MainWrapper():
         
         self.log.debug("Starting HouseAgent event handler...")
         event_handler = EventHandler(coordinator, database)
-        
+
+        self.log.debug("Starting Houseagent history aggregator")
+        histagg = HistoryAggregator(database)
+
+        self.log.debug("Starting Houseagent history collector")
+        HistoryCollector(database, histagg)
+
         self.log.debug("Starting HouseAgent web server...")
         Web(self.log, config.webserver.host, config.webserver.port,\
             config.webserver.backlog, coordinator, event_handler, database)

@@ -19,22 +19,34 @@
                     history_types_list += ";" + item.id + ":" + item.name;
                 }                
             });
+
+            var history_periods = eval($.ajax({url: '/history_periods', async: false, success: function(data, result) {if (!result) alert('Failure to retrieve history_periods.');}}).responseText);
+            var history_periods_list = "";
+            var first = true;
+            $.each(history_periods, function(i, item){
+                if (first) {
+                    first = false;
+                    history_periods_list += item.id + ":" + item.name;
+                } else {
+                    history_periods_list += ";" + item.id + ":" + item.name;
+                }
+            });
                                 
             jQuery("#values").jqGrid({
                 url:'/values',
                 datatype: "json",
-                colNames:['Value name','Status','Device name', 'Device address', 'Location', 'Plugin', 'Last update', 'History', 'History Heartbeat', 'Control type'],
+                colNames:['Name','Value','Device', 'Address', 'Location', 'Plugin', 'Last update', 'History type', 'History period', 'Control type'],
                 colModel:[
-                    {name:'name',index:'name', width:100,editable:false,editoptions:{size:20}},
-                    {name:'value',index:'value', width:100,editable:false,editoptions:{size:20}},
-                    {name:'device',index:'device', width:100,editable:false,editoptions:{size:20}},
-                    {name:'device_address',index:'device_address', width:100,editable:false,editoptions:{size:20}},
-                    {name:'location',index:'location', width:100,editable:false,editoptions:{size:20}},
-                    {name:'plugin',index:'plugin', width:100,editable:false,editoptions:{size:20}},
-                    {name:'lastupdate',index:'lastupdate', width:120,editable:false,editoptions:{size:20}},
-                    {name:'history',index:'history', width:100,editable:true,edittype: "select", editoptions:{size:20}},
-                    {name:'history_heartbeat',index:'history_heartbeat',width:100,editable:true,editoptions:{size:20}},
-                    {name:'control_type',index:'control_type', width:100,editable:false,editoptions:{size:20}},
+                    {name:'name',index:'name', width:70,editable:false,editoptions:{size:20}},
+                    {name:'value',index:'value', width:70,editable:false,editoptions:{size:20}},
+                    {name:'device',index:'device', width:70,editable:false,editoptions:{size:20}},
+                    {name:'device_address',index:'device_address', width:70,editable:false,editoptions:{size:20}},
+                    {name:'location',index:'location', width:70,editable:false,editoptions:{size:20}},
+                    {name:'plugin',index:'plugin', width:70,editable:false,editoptions:{size:20}},
+                    {name:'lastupdate',index:'lastupdate', width:140,align:"center",editable:false,editoptions:{size:20}},
+                    {name:'history_type',index:'history_type', width:70,align:"center",editable:true,edittype: "select", editoptions:{size:20}},
+                    {name:'history_period',index:'history_period',width:90,align:"center",editable:true,edittype: "select", editoptions:{size:20}},
+                    {name:'control_type',index:'control_type', width:100,align:"center",editable:false,editoptions:{size:20}},
                 ],
                 rowNum:10,
                 rowList:[10,20,30],
@@ -54,8 +66,9 @@
                     records: function (obj) { return obj.length; }
                 },    
                 loadComplete: function() {
-                    $("#values").setColProp('history', { editoptions: { value: history_types_list} });
-                },                                             
+                    $("#values").setColProp('history_type', { editoptions: { value: history_types_list} });
+                    $("#values").setColProp('history_period', { editoptions: { value: history_periods_list} });
+		},
             });
             
 			$("#values").jqGrid('navGrid', '#pagernav',

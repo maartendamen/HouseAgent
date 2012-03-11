@@ -5,7 +5,8 @@ Created on Oct 5, 2011
 @author: Daniel Berenguer
 '''
 
-from database import Database, DataHistory
+from database import Database
+#from database import Database, DataHistory
 from twisted.internet import reactor, defer
 from twisted.internet.defer import inlineCallbacks, returnValue
 from twisted.internet.task import LoopingCall
@@ -78,7 +79,8 @@ class DatabaseFlash(Database):
                 # Update value
                 curr_val.value = value
                 curr_val.last_update = updatetime
-                
+
+            # XXX: need to be rewriten
             # Log value?
             if current_value[0][2] not in (0, None):
                 DataHistory("data", value_id, value, "GAUGE", 60, int(time))                
