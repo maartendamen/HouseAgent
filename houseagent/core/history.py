@@ -118,7 +118,7 @@ class HistoryCollector():
 
 
     def cleanup(self):
-        self.log.debug("Cleaning 1 day old values from history_values table.")
+        self.log.debug("Cleaning old values from history_values table.")
         self.db.cleanup_history_values()
 
 
@@ -128,9 +128,9 @@ class HistoryCollector():
             period = self._resolve_period(schedule)
             self._start_schedule(val_id, schedule, period)
 
-        # Try to cleanup history_values every 2 hours
+        # Try to cleanup history_values every 12 hours
         t = task.LoopingCall(self.cleanup)
-        t.start(7200, False)
+        t.start(43200, False)
 
         self.log.debug("Sheduled tasks: %s" % self._scheduled_tasks)
 

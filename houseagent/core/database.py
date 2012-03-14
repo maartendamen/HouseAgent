@@ -553,7 +553,8 @@ class Database():
         return self.dbpool.runQuery("SELECT value_id, hist_type_id, value, created_at FROM history_valuesi WHERE created_at >= '?' AND created_at < '?';", [date_from, date_to])
 
     def cleanup_history_values(self):
-        return self.dbpool.runQuery("DELETE FROM history_values WHERE created_at < DATETIME(DATETIME(), 'localtime', '-1 day');")
+        """keep 7 days history of history_values table"""
+        return self.dbpool.runQuery("DELETE FROM history_values WHERE created_at < DATETIME(DATETIME(), 'localtime', '-7 day');")
 
     def collect_history_values(self, value_id):
         return self.dbpool.runQuery("INSERT INTO history_values SELECT id, value, DATETIME(DATETIME(), 'localtime') FROM current_values WHERE id=?;", [value_id])
