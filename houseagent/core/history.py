@@ -142,6 +142,7 @@ class HistoryAggregator():
         conf = Config()
 
         self.db = database
+        self.cur_month = datetime.datetime.strftime(datetime.datetime.now(), "%m")
         self.dba = DatabaseArchive(conf.general.dbpatharchive, \
                                     conf.general.dbfile, [])
         self.log = pluginapi.Logging("Aggregator")
@@ -232,7 +233,7 @@ class HistoryAggregator():
                     else:
                         self.log.warning("Unsupported period (%s)" % p)
 
-            print self._scheduled_tasks
+            self.log.debug("Scheduled tasks: %s" % self._scheduled_tasks)
 
 
     def _stop_schedule(self, id):
@@ -250,6 +251,13 @@ class HistoryAggregator():
 
     def _aggregate_year(self, val_id):
         self.dba.aggregate_year(val_id)
+
+        # check if the new month come
+        next_month = datetime.datetime.strftime(datetime.datetime.now(), "%m")
+        if next_month > self.cur_month:
+            self.dba.close() # close old DB
+            self.dba = DatabaseArchive(conf.general.dbpatharchive, \
+                                       conf.general.dbfile, [])
 
 
     def do(self, result):
@@ -355,6 +363,8 @@ class DatabaseArchive():
         # take care of this
         pass 
 
+    def close(self):
+        self.dbpool.close()
 
     def aggregate_day(self, val_id, val_type):
         date_to = datetime.datetime.strftime(datetime.datetime.now(), "%Y-%m-%d %H:00:00")
