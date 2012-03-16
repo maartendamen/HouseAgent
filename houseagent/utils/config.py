@@ -107,9 +107,23 @@ class _ConfigGeneral:
                 elif os.path.exists(os.path.join(os.getcwd(), 'houseagent.db')):
                     self.dbfile = os.path.join(os.getcwd(), 'houseagent.db')
 
-        # XXX: do it better
         self.dbpatharchive = _getOpt(
-                parser.get, "general", "dbpatharchive", os.path.abspath("archive"))
+                parser.get, "general", "dbpatharchive", None)
+
+        # XXX: Need to be tested
+        if self.dbpatharchive == "":
+            if os.name == 'nt':
+                if hasattr(sys, 'frozen'):
+                    # Special case for binary Windows version
+                    self.dbpatharchive = os.path.join(programdata, 'archive')
+                elif os.path.exists(os.path.join(programdata, 'archive')):
+                    self.dbpatharchive = os.path.join(programdata, 'archive')
+                elif os.path.exists(os.path.join(os.getcwd(), 'archive')):
+                    # development
+                    self.dbpatharchive = os.path.join(os.getcwd(), 'archive')
+            else:
+                if os.path.exists(os.path.join(os.getcwd(), 'archive')):
+                    self.dbpatharchive = os.path.join(os.getcwd(), 'archive')
 
 
 class _ConfigWebserver:
