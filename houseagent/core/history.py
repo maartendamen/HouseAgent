@@ -139,12 +139,12 @@ class HistoryCollector():
 class HistoryAggregator():
 
     def __init__(self, database):
-        conf = Config()
+        self.conf = Config()
 
         self.db = database
-        self.cur_month = datetime.datetime.strftime(datetime.datetime.now(), "%m")
-        self.dba = DatabaseArchive(conf.general.dbpatharchive, \
-                                    conf.general.dbfile, [])
+        self.cur_month = datetime.datetime.strftime(datetime.datetime.now(), "%Y%m")
+        self.dba = DatabaseArchive(self.conf.general.dbpatharchive, \
+                                   self.conf.general.dbfile, [])
         self.log = pluginapi.Logging("Aggregator")
 
         self._types = {}
@@ -253,7 +253,7 @@ class HistoryAggregator():
         self.dba.aggregate_year(val_id)
 
         # check if the new month come
-        next_month = datetime.datetime.strftime(datetime.datetime.now(), "%m")
+        next_month = datetime.datetime.strftime(datetime.datetime.now(), "%Y%m")
         if next_month > self.cur_month:
             self.dba.close() # close old DB
             self.dba = DatabaseArchive(conf.general.dbpatharchive, \
@@ -290,11 +290,11 @@ class DatabaseArchive():
 
         self.main_db = main_db
         self.archive_db_location = archive_db_location
-        self.curr_date = datetime.datetime.strftime(datetime.datetime.now(), "%Y_%m")
+        self.cur_date = datetime.datetime.strftime(datetime.datetime.now(), "%Y_%m")
 
         if len(db_array) == 0:
             # not a specific archive(s) lookup, use the db for current month
-            self.db_name = "archive_%s.db" % self.curr_date
+            self.db_name = "archive_%s.db" % self.cur_date
             self.db_path = os.path.join(self.archive_db_location, self.db_name)
         else:
             # XXX: need to rewrite this part
@@ -324,7 +324,7 @@ class DatabaseArchive():
 
 
     def create_archive_db(self):
-        _db_name = "archive_%s.db" % self.curr_date
+        _db_name = "archive_%s.db" % self.cur_date
         _db_path = os.path.join(self.archive_db_location, _db_name)
         try:
             self.log.debug("create_archive_db: %s" % _db_name) 
