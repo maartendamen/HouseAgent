@@ -258,6 +258,8 @@ class HistoryAggregator():
             self.dba.close() # close old DB
             self.dba = DatabaseArchive(conf.general.dbpatharchive, \
                                        conf.general.dbfile, [])
+            # increase current month value
+            self.cur_month = next_month
 
 
     def do(self, result):
