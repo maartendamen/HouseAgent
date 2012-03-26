@@ -550,7 +550,7 @@ class Database():
         return self.dbpool.runQuery("SELECT id, name, secs, sysflag FROM history_periods;")
 
     def query_history_values(self, date_from, date_to):
-        return self.dbpool.runQuery("SELECT value_id, hist_type_id, value, created_at FROM history_valuesi WHERE created_at >= '?' AND created_at < '?';", [date_from, date_to])
+        return self.dbpool.runQuery("SELECT value_id, hist_type_id, value, created_at FROM history_values WHERE created_at >= '?' AND created_at < '?';", [date_from, date_to])
 
     def cleanup_history_values(self):
         """keep 7 days history of history_values table"""
