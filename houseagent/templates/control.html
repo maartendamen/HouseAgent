@@ -74,7 +74,7 @@ $(document).ready(function()
 							<td id='status${device[5]}'>${device[4]}</td>
 							<td>
 							
-							% if device[6] == "CONTROL_TYPE_ON_OFF":
+							% if device[6] == "Switch (On/off)":
 								<button onclick='javascript:control("${device[3]}", "${device[1]}", "1", "status${device[3]}");' class="ui-button ui-button-text-only ui-widget ui-state-default ui-corner-all">
 								   <span class="ui-button-text">On</span>
 								</button> 

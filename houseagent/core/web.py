@@ -60,10 +60,11 @@ class Web(object):
         root.putChild('devices_view', Devices_view())
         
         # Value management
-        root.putChild('values', Values(self.db))
+        root.putChild('values', Values(self.db, self.coordinator))
         root.putChild('values_view', Values_view())
         root.putChild('history_types', HistoryTypes(self.db)) 
-        root.putChild('history_periods', HistoryPeriods(self.db)) 
+        root.putChild('history_periods', HistoryPeriods(self.db))
+        root.putChild('control_types', ControlTypes(self.db))
         
         root.putChild("device_add", Device_add(self.db))
         root.putChild("device_save", Device_save(self.db))
@@ -72,7 +73,6 @@ class Web(object):
         root.putChild("device_del", Device_del(self.db))
         root.putChild("device_edit", Device_edit(self.db))
         root.putChild("history", History(self.db))
-        root.putChild("control_type", Control_type(self.db))
 
         # Events
         root.putChild("event_create", Event_create(self.db))
@@ -403,6 +403,7 @@ class Devices(HouseAgentREST):
     @inlineCallbacks
     def _edit(self, parameters):       
         yield self.db.set_history(parameters['id'][0], parameters['history_period'][0], parameters['history_type'][0])
+        yield self.db.set_controltype(parameters['id'][0], parameters['control_type'][0])
         self._reload()
         self._done()
     
@@ -423,7 +424,7 @@ class Value(Resource):
     '''
     This object represents a Value.
     '''
-    def __init__(self, id, name, value, device, device_address, location, plugin, lastupdate, history_type, history_period, control_type):
+    def __init__(self, id, name, value, device, device_address, location, plugin, lastupdate, history_type, history_period, control_type, plugin_id):
         Resource.__init__(self)
         self.id = id
         self.name = name
@@ -436,11 +437,12 @@ class Value(Resource):
         self.history_type = history_type
         self.history_period = history_period
         self.control_type = control_type
+        self.plugin_id = plugin_id
         
     def json(self):
         return {'id': self.id, 'name': self.name, 'value': self.value, 'device': self.device, 'device_address': self.device_address,
                 'location': self.location, 'plugin': self.plugin, 'lastupdate': self.lastupdate, 'history_type': self.history_type,
-                'control_type': self.control_type, 'history_period': self.history_period}
+                'control_type': self.control_type, 'history_period': self.history_period, 'plugin_id': self.plugin_id}
     
     def render_GET(self, request):
         return json.dumps(self.json())
@@ -451,6 +453,10 @@ class Value(Resource):
         return NOT_DONE_YET
     
 class Values(HouseAgentREST):
+
+    def __init__(self, db, coordinator):
+        HouseAgentREST.__init__(self, db)
+        self.coordinator = coordinator
 
     def render_GET(self, request):
         self._objects = []
@@ -478,7 +484,7 @@ class Values(HouseAgentREST):
         value_query = yield self.db.query_values()
         
         for value in value_query:
-            val = Value(value[7], value[0], value[1], value[2], value[5], value[6], value[4], value[3], value[10], value[11], value[8])
+            val = Value(value[7], value[0], value[1], value[2], value[5], value[6], value[4], value[3], value[10], value[11], value[8], value[12])
             self._objects.append(val)
     
     @inlineCallbacks
@@ -499,6 +505,35 @@ class Values(HouseAgentREST):
         yield self.db.del_device(int(obj.id))
         self._objects.remove(obj)
         obj.request.finish()
+    
+    def getChild(self, name, request):
+               
+        try:
+            action = request.args['action'][0]
+        except KeyError:
+            action = None
+        
+        if not action:
+            for obj in self._objects:
+                if name == str(obj.id):
+                    return obj
+                
+            return NoResource(message="The resource %s was not found" % request.URLPath())
+        else:
+            for obj in self._objects: 
+                if name == str(obj.id): 
+                    device_address = obj.device_address 
+                    plugin_id = obj.plugin_id
+                    
+                    def control_result(result):
+                        request.write(str(result))
+                        request.finish()
+                    
+                    if action == 'poweron':
+                        print self.coordinator
+                        self.coordinator.send_poweron(plugin_id, device_address).addCallback(control_result)
+                    
+                    return NOT_DONE_YET
         
 class Values_view(Resource):
     
@@ -566,6 +601,35 @@ class HistoryPeriods(HouseAgentREST):
 
         for period in history_period_query:
             hist = HistoryPeriod(period[0], period[1], period[2], period[3])
+            self._objects.append(hist)
+
+class ControlType(Resource):
+    '''
+    This object represents a ControlType.
+    '''
+    def __init__(self, id, name):
+        Resource.__init__(self)
+        self.id = id
+        self.name = name
+
+    def json(self):
+        return {"id": self.id, "name": self.name}
+
+    def render_GET(self, request):
+        return json.dumps(self.json())
+
+class ControlTypes(HouseAgentREST):
+    
+    @inlineCallbacks
+    def _load(self):
+        '''
+        Load control types from the database.
+        '''
+        self._objects = []
+        control_type_query = yield self.db.query_controltypes()
+        
+        for control_type in control_type_query:
+            hist = ControlType(control_type[0], control_type[1])
             self._objects.append(hist)
 
 class Plugin_add(Resource):
@@ -1072,27 +1136,7 @@ class History(Resource):
         print "history=", history
         
         self.db.set_history(int(id), history).addCallback(self.history_set)
-        return NOT_DONE_YET     
-    
-class Control_type(Resource):
-    '''
-    This sets the control type for a value.
-    '''
-    def __init__(self, database):
-        Resource.__init__(self)
-        self.db = database     
-    
-    def control_type_set(self, result):
-        self.request.write(str("done!"))
-        self.request.finish()        
-    
-    def render_POST(self, request):
-        self.request = request
-        id = request.args['id'][0]
-        control_type = request.args['type'][0]
-        
-        self.db.set_controltype(int(id), int(control_type)).addCallback(self.control_type_set)
-        return NOT_DONE_YET       
+        return NOT_DONE_YET
     
 class Location_edited(Resource):
     def __init__(self, database):
