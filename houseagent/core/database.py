@@ -502,6 +502,9 @@ class Database():
                                "LEFT OUTER JOIN history_types ON (current_values.history_type_id = history_types.id) " +
                                "LEFT OUTER JOIN history_periods ON (current_values.history_period_id = history_periods.id)")
 
+    def query_values_light(self):
+        return self.dbpool.runQuery("SELECT id, name, history_period_id, history_type_id FROM current_values;")
+
     def query_devices(self):      
         return self.dbpool.runQuery("SELECT devices.id, devices.name, devices.address, plugins.name, locations.name from devices " +
                                     "INNER JOIN plugins ON (devices.plugin_id = plugins.id) " +
@@ -550,7 +553,7 @@ class Database():
         return self.dbpool.runQuery("SELECT id, name, secs, sysflag FROM history_periods;")
 
     def query_history_values(self, date_from, date_to):
-        return self.dbpool.runQuery("SELECT value_id, hist_type_id, value, created_at FROM history_values WHERE created_at >= '?' AND created_at < '?';", [date_from, date_to])
+        return self.dbpool.runQuery("SELECT value, created_at FROM history_values WHERE created_at >= '%s' AND created_at < '%s';" % (date_from, date_to))
 
     def cleanup_history_values(self):
         """keep 7 days history of history_values table"""

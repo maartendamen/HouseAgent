@@ -416,10 +416,37 @@ class DatabaseArchive():
                         % (date_from, date_to, val_id, date_from, date_to))
 
 
+    def query_history_values(self, val_id):
+        """return all 'current' historic values for given value id"""
+        return self.dbpool.runQuery("SELECT value, STRFTIME('%s', created_at) AS ts FROM history_values WHERE value_id=?;", [val_id])
+
+    def query_archive_daily_data(self, val_id):
+        return self.dbpool.runQuery("SELECT value, min, avg, max, STRFTIME('%s', date_from) AS ts FROM day WHERE id=?;", [val_id])
+
+
 class HistoryViewer():
     """
     Bridge between the Web/REST interface and history/archive DB
     """
 
     def __init__(self, database):
-        pass
+        self.conf = Config()
+
+        self.db = database
+        self.cur_month = datetime.datetime.strftime(datetime.datetime.now(), "%Y%m")
+        self.dba = DatabaseArchive(self.conf.general.dbpatharchive, \
+                                   self.conf.general.dbfile, [])
+
+    @inlineCallbacks
+    def get_latest_data(self, value_id):
+        data = yield self.dba.query_history_values(value_id)
+        if len(data) > 0:
+            returnValue(data)
+        else: returnValue([])
+
+    @inlineCallbacks
+    def get_daily_data(self, value_id):
+        data = yield self.dba.query_archive_daily_data(value_id)
+        if len(data) > 0:
+            returnValue(data)
+        else: returnValue([])

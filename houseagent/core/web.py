@@ -17,6 +17,7 @@ from twisted.web.server import NOT_DONE_YET
 from twisted.web.error import NoResource
 from uuid import uuid4
 from twisted.web import http
+from houseagent.core.history import HistoryViewer
             
 class Web(object):
     '''
@@ -64,7 +65,8 @@ class Web(object):
         root.putChild('values_view', Values_view())
         root.putChild('history_types', HistoryTypes(self.db)) 
         root.putChild('history_periods', HistoryPeriods(self.db)) 
-        
+
+        # Device management
         root.putChild("device_add", Device_add(self.db))
         root.putChild("device_save", Device_save(self.db))
         root.putChild("device_list", Device_list(self.db))
@@ -89,9 +91,10 @@ class Web(object):
         root.putChild("images", File(os.path.join(houseagent.template_dir, 'images')))
 
 
-        root.putChild("graphdata", GraphData())
         root.putChild("create_graph", CreateGraph(self.db))
-        
+        root.putChild("graph_latest", GraphLatest(self.db))
+        root.putChild("graph_daily", GraphDaily(self.db))
+
         root.putChild("control", Control(self.db))        
         root.putChild("control_onoff", Control_onoff(self.coordinator))
         root.putChild("control_dimmer", Control_dimmer(self.coordinator))
@@ -150,7 +153,7 @@ class HouseAgentREST(Resource):
         self._objects = []
     
     # functions that must be implemented
-    def _load(self):
+    def _load(self, **kwargs):
         raise NotImplementedError
     
     def _add(self, **kwargs):
@@ -912,45 +915,177 @@ class Event_save(Resource):
         
         return NOT_DONE_YET
 
-class GraphData(Resource):
-    """
-    Class to return historic data as json output.
-    """
-    def render_GET(self, request):
+
+class GraphValue(Resource):
+    '''
+    This object represents a Location.
+    '''
+    def __init__(self, value, ts):
+        Resource.__init__(self)
+        self.value = value
+        self.ts = (ts * 1000) # due to the JS
         
-        self.request = request
-        type = request.args["type"][0]
-        period = request.args["period"][0]
-        history_id = request.args["history_id"][0]
-        
-        if type == "gauge":
-            rrd = RRD("history/%s.rrd" % history_id)
-            result = rrd.fetch(resolution=60, start=period, end='now')
-            
-            clockfix = (datetime.datetime.now().hour - datetime.datetime.utcnow().hour) * 3600
-            
-            series = [((ts + clockfix) * 1000, val) for ts, val in result["data"]]
-            
-        return json.dumps(series)
+    def json(self):
+        return [self.ts, self.value]
     
+    def render_GET(self, request):
+        return json.dumps(self.json())
+
+
+class GraphLatest(HouseAgentREST):
+    '''
+    This class implements a basic REST interface.
+    '''
+    def __init__(self, db):
+        Resource.__init__(self)
+        self.db = db
+        self._objects = []
+
+    def render_GET(self, request):
+        self._objects = []
+
+        self.request = request
+
+        val_id = request.args["val_id"][0]
+        #type = request.args["type"][0]
+        ##period = request.args["period"][0]
+        
+        self._load(val_id).addCallback(self.done)
+
+        return NOT_DONE_YET
+    
+    def done(self, result):
+    
+        output = []
+        for obj in self._objects:
+            output.append(obj.json())
+
+        self.request.write(json.dumps(output))
+        self.request.finish()
+    
+    @inlineCallbacks            
+    def _load(self, params):
+        '''
+        Load plugins from the database.
+        '''
+        self.histview = HistoryViewer(self.db)
+        self._objects = []
+        value_query = yield self.histview.get_latest_data(params[0])
+        
+        for value in value_query:
+            val = GraphValue(float(value[0]), float(value[1]))
+            self._objects.append(val)
+
+
+class GraphDaily(HouseAgentREST):
+    '''
+    This class implements a basic REST interface.
+    '''
+    def __init__(self, db):
+        Resource.__init__(self)
+        self.db = db
+        self._objects = []
+
+    def render_GET(self, request):
+        self._objects = []
+
+        self.request = request
+
+        val_id = request.args["val_id"][0]
+        #type = request.args["type"][0]
+        ##period = request.args["period"][0]
+        
+        self._load(val_id).addCallback(self.done)
+
+        return NOT_DONE_YET
+    
+    def done(self, result):
+    
+        output = []
+        val = []
+        min = []
+        avg = []
+        max = []
+
+        for obj in self._objects:
+            val.append(obj["val"].json())
+            min.append(obj["min"].json())
+            avg.append(obj["avg"].json())
+            max.append(obj["max"].json())
+        
+        #for obj in self._objects:
+        #    output.append(obj.json())
+        output.append(val)
+        output.append(min)
+        output.append(avg)
+        output.append(max)
+
+        self.request.write(json.dumps(output))
+        self.request.finish()
+    
+    @inlineCallbacks            
+    def _load(self, params):
+        '''
+        Load plugins from the database.
+        '''
+        self.histview = HistoryViewer(self.db)
+        self._objects = []
+        value_query = yield self.histview.get_daily_data(params[0])
+        
+        for value in value_query:
+            val = GraphValue(float(value[0]), float(value[4]))
+            min = GraphValue(float(value[1]), float(value[4]))
+            avg = GraphValue(float(value[2]), float(value[4]))
+            max = GraphValue(float(value[3]), float(value[4]))
+            _tmp = {"val": val, "min": min, "avg": avg, "max": max}
+            self._objects.append(_tmp)
+
+
 class CreateGraph(Resource):
     """
     Template for creating a graph.
     """
     def __init__(self, database):
         Resource.__init__(self)
-        self.db = database 
-    
+        self.db = database
+        self._types = {}
+
+        reactor.callLater(0, self._load_history_types)
+
+
+    @inlineCallbacks
+    def _load_history_types(self):
+        types = yield self.db.query_history_types()
+
+        for type in types:
+            self._types[type[0]] = {"type": type[1]}
+
+
+    def _filter_disabled(self, data):
+        _data = []
+        for i in data:
+            _val = ()
+            # only items w/ enabled collecting
+            if i[2] > 1:
+                _resolved_type = self._types[i[3]]["type"].lower()
+                _val = (i[0], i[1], _resolved_type)
+                _data.append(_val)
+
+        return _data
+
+
     def result(self, result):
         lookup = TemplateLookup(directories=[houseagent.template_dir])
         template = lookup.get_template('graph_create.html')
-        
-        self.request.write(str(template.render(result=result)))
+
+        filtered = self._filter_disabled(result)
+
+        self.request.write(str(template.render(result=filtered)))
         self.request.finish()
     
     def render_GET(self, request):
         self.request = request
-        self.db.query_historic_values().addCallback(self.result)
+        self.db.query_values_light().addCallback(self.result)
         return NOT_DONE_YET
     
 

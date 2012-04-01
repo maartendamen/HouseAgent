@@ -17,8 +17,7 @@ $(document).ready(function()
 	  return value;
 	}
 
-	function ondata(d)
-	{
+	function basic_data(d) {
 		var value_name = $("#historic_values option:selected").text().split(' - ')[1];
 		
 		switch(value_name)
@@ -33,28 +32,97 @@ $(document).ready(function()
 		      color = '#FFF380';
 		      break;
 			default:
-			  color = "black";
+			  color = "#CAEF90";
 		}
 		
-		var data1 = [ { label: value_name, 
-								data: d,
-								color: color} ];
+		var data1 = [ { label: value_name, data: d, color: color} ];
+		var options = {
+			xaxis: {
+				mode: "time",
+				tickLength: 0
+			},
+			grid: {
+				borderColor: "#ffffff"
+			},
+			series: {
+				lines: {
+					show: true,
+					fill: true
+				}
+			}
+		};
 		
-		var options = { xaxis: { mode: "time" } };
-		
-		$.plot($("#graph"), data1, options );
+		$.plot($("#graph_latest"), data1, options );
 	}
 	
+	function agg_data(d) {
+		var value_name = $("#historic_values option:selected").text().split(' - ')[1];
+		
+		switch(value_name)
+		{
+			case "Temperature":
+			  color = '#ff0000';
+			  break;
+			case "Humidity":
+		      color = '#157DEC';
+		      break;
+		    case "Light": case "Lux":
+		      color = '#FFF380';
+		      break;
+			default:
+			  color = "#CAEF90";
+		}
+		
+		var data1 = [
+			{label: "current", data: d[0], color: "#caef90"},
+			{label: "min", data: d[1], color: "#1111da"},
+			{label: "avg", data: d[2], color: "#da11da"},
+			{label: "max", data: d[3], color: "#da1111"}
+		];
+		var options = {
+			xaxis: {
+				mode: "time",
+				tickSize: [30, "minute"],
+				tickLength: 0
+			},
+			grid: {
+				borderColor: "#ffffff"
+			},
+			series: {
+				lines: {
+					show: true,
+					fill: false
+				},
+				points: {
+					show: true
+				}
+			}
+		};
+		
+		$.plot($("#graph_day"), data1, options );
+	}
+
 	$('#create_button').click(function() {
-		history_id = $("#historic_values").val();
-		period = $("#period").val();
+		val_id = $("#value").val();
+		//type = $("#type").val();
+		//period = $("#period").val();
 	
 	    $.ajax({
-	        url: '/graphdata',
+	        url: '/graph_latest',
 	        method: 'GET',
 	        dataType: 'json',
-	        data: 'type=gauge&history_id=' + history_id + '&period=' + period,
-	        success: ondata
+	        //data: 'type='+ type +'&val_id=' + val_id + '&period=' + period,
+	        //data: 'val_id=' + val_id + '&period=' + period,
+	        data: 'val_id=' + val_id,
+	        success: basic_data
+	    });
+
+	    $.ajax({
+		url: "/graph_daily",
+		method: "GET",
+		dataType: "json",
+	        data: 'val_id=' + val_id,
+	        success: agg_data
 	    });
 	});	
 });
@@ -76,12 +144,12 @@ $(document).ready(function()
 			<td class="body info">
 				<div id="graphzone">
 					Please select a value for graph:<br>
-					<select id="historic_values">
+					<select id="value">
 						% for historic_value in result:
-							<option value="${historic_value[0]}">${historic_value[2]} - ${historic_value[1]}</option>
+							<option value="${historic_value[0]}">${historic_value[1]}</option>
 						% endfor
 					</select>
-					<br>Please select a reporting period for the graph:<br>
+					<!--<br>Please select a reporting period for the graph:<br>
 					<select id="period">
 						<option value="-1h">Last hour</option>
 						<option value="-4h">Last 2 hours</option>
@@ -100,14 +168,16 @@ $(document).ready(function()
 						<option value="-3y">Last 3 years</option>	
 						<option value="-5y">Last 5 years</option>
 						<option value="-5y">Last 10 years</option>			
-					</select>				
+					</select>-->				
 					<br><br>
 					<button id="create_button">Create graph</button><br><br>
 				</div>
 				<div id="graphzone2">
 					<p id="graphtext" style="display: none;">lalalala</p>
-					<div id="graph" style="width:600px;height:300px">
-					</div>
+					<div id="graph_latest" style="width:100%;height:200px"></div>
+					<br/><br/>
+					<div id="graph_day" style="width:100%;height:200px"></div>
+					<br/><br/>
 				</div>
 			</td>
 		</tr>
