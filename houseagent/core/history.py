@@ -328,16 +328,15 @@ class DatabaseArchive():
     def create_archive_db(self):
         _db_name = "archive_%s.db" % self.cur_date
         _db_path = os.path.join(self.archive_db_location, _db_name)
+
+        self.log.debug("Attempting to create archive db: %s" % _db_name)
         try:
-            self.log.debug("create_archive_db: %s" % _db_name) 
-            fd = os.open(_db_path, os.O_CREAT, 0644)
+            fd = open(_db_path, 'wb')
         except Exception, err:
             self.log.critical("Cannot create archive db '%s': %s" % (_db_name, err))
             sys.exit(1) # exit HouseAgent
 
-        os.fsync(fd) # don't trust to the automatic fs sync mechanism
-        os.close(fd)
-
+        fd.close()
 
     def prepare_archive_db(self):
         return self.dbpool.runInteraction(self._prepare_archive_db)
