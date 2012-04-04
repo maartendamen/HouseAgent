@@ -16,7 +16,7 @@ from twisted.web.resource import Resource
 from twisted.web.server import NOT_DONE_YET
 from twisted.web.error import NoResource
 from uuid import uuid4
-from twisted.web import http
+from twisted.web import http, resource
             
 class Web(object):
     '''
@@ -452,6 +452,27 @@ class Value(Resource):
         self.parent.delete(self)
         return NOT_DONE_YET
     
+class ValuePowerOnOffResult(Resource):
+    
+    def __init__(self, plugin_id, device_address, coordinator, action):
+        Resource.__init__(self)
+        self.plugin_id = plugin_id
+        self.device_address = device_address
+        self.coordinator = coordinator
+        self.action = action
+        
+    def render_GET(self, request):
+
+        def control_result(result):
+            request.write(str(result))
+            request.finish()
+        
+        if self.action == 'poweron':
+            self.coordinator.send_poweron(self.plugin_id, self.device_address).addCallback(control_result)
+        elif self.action == 'poweroff':
+            self.coordinator.send_poweroff(self.plugin_id, self.device_address).addCallback(control_result)        
+        return NOT_DONE_YET
+    
 class Values(HouseAgentREST):
 
     def __init__(self, db, coordinator):
@@ -514,26 +535,22 @@ class Values(HouseAgentREST):
             action = None
         
         if not action:
+            
             for obj in self._objects:
                 if name == str(obj.id):
                     return obj
                 
             return NoResource(message="The resource %s was not found" % request.URLPath())
+        
         else:
+
             for obj in self._objects: 
                 if name == str(obj.id): 
                     device_address = obj.device_address 
                     plugin_id = obj.plugin_id
                     
-                    def control_result(result):
-                        request.write(str(result))
-                        request.finish()
-                    
-                    if action == 'poweron':
-                        print self.coordinator
-                        self.coordinator.send_poweron(plugin_id, device_address).addCallback(control_result)
-                    
-                    return NOT_DONE_YET
+                    if action == 'poweron' or action == 'poweroff':                       
+                        return ValuePowerOnOffResult(device_address, plugin_id, self.coordinator, action)
         
 class Values_view(Resource):
     
@@ -1036,33 +1053,6 @@ class Control(Resource):
     def render_GET(self, request):
         self.request = request
         self.db.query_controllable_devices().addCallback(self.valueProcessor)
-        return NOT_DONE_YET
-
-class Control_onoff(Resource):
-    """
-    Class that manages on off actions.
-    """
-    def __init__(self, coordinator):
-        Resource.__init__(self)
-        self.coordinator = coordinator    
-    
-    def control_result(self, result):
-        print "received:", result
-        self.request.write(str(result['processed']))
-        self.request.finish()
-    
-    def render_POST(self, request):
-        self.request = request
-        print "!!!!!!!!!!!"
-        plugin = request.args["plugin"][0]
-        address = request.args["address"][0]
-        action = int(request.args["action"][0])
-        
-        if action == 1:
-            self.coordinator.send_poweron(plugin, address).addCallback(self.control_result)
-        elif action == 0:
-            self.coordinator.send_poweroff(plugin, address).addCallback(self.control_result)
-                    
         return NOT_DONE_YET
     
 class Control_dimmer(Resource):

@@ -271,7 +271,7 @@ class Coordinator(object):
             return self.broker.send_rpc(p.routing_info, content)
         else:
             d = defer.Deferred()
-            d.callback("fail")
+            d.callback(0)
             return d
         
     def send_crud_update(self, type, action, parameters):

@@ -571,7 +571,7 @@ class Database():
     # /history collector stuff
 
     def query_controllable_devices(self):
-        return self.dbpool.runQuery("SELECT devices.name, devices.address, plugins.name, plugins.authcode, current_values.value, devices.id, control_types.name FROM current_values " +
+        return self.dbpool.runQuery("SELECT devices.name, devices.address, plugins.name, plugins.authcode, current_values.value, devices.id, control_types.name, current_values.id FROM current_values " +
                                     "INNER JOIN devices ON (current_values.device_id = devices.id) " +
                                     "INNER JOIN plugins ON (devices.plugin_id = plugins.id) " +
                                     "INNER JOIN control_types ON (current_values.control_type_id = control_types.id) " +
