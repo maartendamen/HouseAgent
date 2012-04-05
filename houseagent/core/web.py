@@ -970,7 +970,7 @@ class GraphLatest(HouseAgentREST):
         '''
         self.histview = HistoryViewer(self.db)
         self._objects = []
-        value_query = yield self.histview.get_latest_data(params[0])
+        value_query = yield self.histview.get_latest_data(params)
         
         for value in value_query:
             val = GraphValue(float(value[0]), float(value[1]))
