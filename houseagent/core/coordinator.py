@@ -302,7 +302,6 @@ class Coordinator(object):
         for plugin in plugins:
             p = Plugin(plugin[1], plugin[2], time.time(), plugin[4])
             self.plugins.append(p)
-            print plugin
            
     def plugin_id_by_guid(self, guid):
         '''

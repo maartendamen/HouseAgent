@@ -329,6 +329,7 @@ class Plugins(HouseAgentREST):
         uuid = uuid4()    
         yield self.db.register_plugin(parameters['name'][0], uuid, location)
         self._reload()
+        self.coordinator.load_plugins() # Reload plugins in coordinator
         self._done()
     
     @inlineCallbacks
