@@ -101,6 +101,7 @@ class Database():
                     # history_periods table
                     txn.execute("CREATE TABLE history_periods(id integer PRIMARY KEY AUTOINCREMENT NOT NULL,\
                                 name varchar(20), secs integer NOT NULL, sysflag CHAR(1) NOT NULL DEFAULT '0');")
+                    
                     # default values for history_periods table
                     txn.execute("INSERT INTO history_periods VALUES(1,'Disabled',0,'1');")
                     txn.execute("INSERT INTO history_periods VALUES(2,'5 min',300,'1');")
@@ -115,6 +116,7 @@ class Database():
                     # history_types table
                     txn.execute("CREATE TABLE history_types (id integer PRIMARY KEY AUTOINCREMENT NOT NULL, \
                                 name  varchar(50));")
+                    
                     # default values for history_types table
                     txn.execute("INSERT INTO history_types VALUES (NULL, 'GAUGE');")
                     txn.execute("INSERT INTO history_types VALUES (NULL, 'COUNTER');")
@@ -127,6 +129,7 @@ class Database():
                     txn.execute("INSERT INTO current_values_tmp \
                                 SELECT id, name, value, device_id, lastupdate, history, \
                                 history_type_id, control_type_id FROM current_values;")
+                    
                     # create new current_values scheme (old data are purged)
                     txn.execute("DROP TABLE current_values;")
                     txn.execute("CREATE TABLE current_values(id integer PRIMARY KEY AUTOINCREMENT NOT NULL, \
@@ -136,6 +139,7 @@ class Database():
                                 FOREIGN KEY (history_period_id) REFERENCES history_periods(id), \
                                 FOREIGN KEY (history_type_id) REFERENCES history_types(id), \
                                 FOREIGN KEY (device_id) REFERENCES devices(id));")
+                    
                     # current_values indexes
                     txn.execute("CREATE INDEX 'current_values.fk_current_values_control_types1' \
                                     ON current_values (control_type_id);")
@@ -145,6 +149,7 @@ class Database():
                                     ON current_values (history_type_id);")
                     txn.execute("CREATE INDEX 'current_values.fk_values_devices1' \
                                     ON current_values (device_id);")
+                    
                     # fill new current_values table
                     txn.execute("INSERT INTO current_values \
                                 SELECT id, name, value, device_id, lastupdate, 1, 1, control_type_id \
@@ -160,6 +165,11 @@ class Database():
                                     ON history_values (created_at);")
                     txn.execute("CREATE INDEX 'history_values.idx_history_values_value_id1' \
                                     ON history_values (value_id);")
+                    
+                    # Control types fix
+                    txn.execute("INSERT into control_types VALUES(0, 'Not controllable');")
+                    txn.execute("UPDATE control_types SET name='Switch (On/off)' WHERE id=1;")
+                    txn.execute("UPDATE control_types SET name='Thermostat (Setpoint)' WHERE id=2;")
 
                     self.log.info("Successfully upgraded database schema")
                 except:
@@ -495,7 +505,7 @@ class Database():
     def query_values(self):
         return self.dbpool.runQuery("SELECT current_values.name, current_values.value, devices.name, " + 
                                "current_values.lastupdate, plugins.name, devices.address, locations.name, current_values.id" + 
-                               ", control_types.name, control_types.id, history_types.name, history_periods.name FROM current_values INNER " +
+                               ", control_types.name, control_types.id, history_types.name, history_periods.name, plugins.id FROM current_values INNER " +
                                "JOIN devices ON (current_values.device_id = devices.id) INNER JOIN plugins ON (devices.plugin_id = plugins.id) " + 
                                "LEFT OUTER JOIN locations ON (devices.location_id = locations.id) " + 
                                "LEFT OUTER JOIN control_types ON (current_values.control_type_id = control_types.id) " +
@@ -565,11 +575,11 @@ class Database():
     # /history collector stuff
 
     def query_controllable_devices(self):
-        return self.dbpool.runQuery("SELECT devices.name, devices.address, plugins.name, plugins.authcode, current_values.value, devices.id, control_types.name FROM current_values " +
+        return self.dbpool.runQuery("SELECT devices.name, devices.address, plugins.name, plugins.authcode, current_values.value, devices.id, control_types.name, current_values.id FROM current_values " +
                                     "INNER JOIN devices ON (current_values.device_id = devices.id) " +
                                     "INNER JOIN plugins ON (devices.plugin_id = plugins.id) " +
                                     "INNER JOIN control_types ON (current_values.control_type_id = control_types.id) " +
-                                    "WHERE current_values.control_type_id != ''")
+                                    "WHERE current_values.control_type_id != 0")
     
     def query_action_types_by_device_id(self, device_id):
         return self.dbpool.runQuery("SELECT current_values.id, current_values.name, control_types.name FROM current_values " +

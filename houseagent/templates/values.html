@@ -31,6 +31,18 @@
                     history_periods_list += ";" + item.id + ":" + item.name;
                 }
             });
+            
+            var control_types = eval($.ajax({url: '/control_types', async: false, success: function(data, result) {if (!result) alert('Failure to retrieve control_types.');}}).responseText);
+            var control_types_list = "";
+            var first = true;
+            $.each(control_types, function(i, item){
+                if (first) {
+                    first = false;
+                    control_types_list += item.id + ":" + item.name;
+                } else {
+                    control_types_list += ";" + item.id + ":" + item.name;
+                }
+            });        
                                 
             jQuery("#values").jqGrid({
                 url:'/values',
@@ -46,7 +58,7 @@
                     {name:'lastupdate',index:'lastupdate', width:140,align:"center",editable:false,editoptions:{size:20}},
                     {name:'history_type',index:'history_type', width:70,align:"center",editable:true,edittype: "select", editoptions:{size:20}},
                     {name:'history_period',index:'history_period',width:90,align:"center",editable:true,edittype: "select", editoptions:{size:20}},
-                    {name:'control_type',index:'control_type', width:100,align:"center",editable:false,editoptions:{size:20}},
+                    {name:'control_type',index:'control_type', width:100,align:"center",editable:true,edittype: "select", editoptions:{size:20}},
                 ],
                 rowNum:10,
                 rowList:[10,20,30],
@@ -68,6 +80,7 @@
                 loadComplete: function() {
                     $("#values").setColProp('history_type', { editoptions: { value: history_types_list} });
                     $("#values").setColProp('history_period', { editoptions: { value: history_periods_list} });
+                    $("#values").setColProp('control_type', { editoptions: { value: control_types_list} });
 		},
             });
             

@@ -3,16 +3,24 @@
 <%def name="head()">
 <script src="/js/jquery-spin.js"></script>
 <script language='javascript'>
-function control(plugin, address, action, statusfield)
+function control_on_off(value_id, action, statusfield)
 {
-        var dataString = 'plugin=' + plugin + '&address=' + address + '&action=' + action
         
         $.ajax({
-            type: "POST",
-            url: "/control_onoff", 
-            data: dataString,
+            type: "GET",            
+            url: '/values/' + value_id + '?action=' + action, 
             success: function(data) {
-                        $('#' + statusfield).html(action);
+
+                        if (data == 0) {
+                            $('#' + statusfield).html("<font color='red'><b>Request failed!</b></font>");
+                        } else {
+                            if (action == "poweron") {
+                                $('#' + statusfield).html("On");
+                            } else if (action == "poweroff") {
+                                $('#' + statusfield).html("Off");
+                            }
+                        }
+                        
                      }
         });
 }
@@ -74,11 +82,11 @@ $(document).ready(function()
 							<td id='status${device[5]}'>${device[4]}</td>
 							<td>
 							
-							% if device[6] == "CONTROL_TYPE_ON_OFF":
-								<button onclick='javascript:control("${device[3]}", "${device[1]}", "1", "status${device[3]}");' class="ui-button ui-button-text-only ui-widget ui-state-default ui-corner-all">
+							% if device[6] == "Switch (On/off)":
+								<button onclick='javascript:control_on_off("${device[7]}", "poweron", "status${device[5]}");' class="ui-button ui-button-text-only ui-widget ui-state-default ui-corner-all">
 								   <span class="ui-button-text">On</span>
 								</button> 
-								<button onclick='javascript:control("${device[3]}", "${device[1]}", "0", "status${device[3]}");' class="ui-button ui-button-text-only ui-widget ui-state-default ui-corner-all">
+								<button onclick='javascript:control_on_off("${device[7]}", "poweroff", "status${device[5]}");' class="ui-button ui-button-text-only ui-widget ui-state-default ui-corner-all">
 								   <span class="ui-button-text">Off</span>
 								</button>
 							% elif device[6] == "CONTROL_TYPE_THERMOSTAT":
