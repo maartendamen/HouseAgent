@@ -96,7 +96,6 @@ class Web(object):
         root.putChild("graph_daily", GraphDaily(self.db))
 
         root.putChild("control", Control(self.db))        
-        root.putChild("control_onoff", Control_onoff(self.coordinator))
         root.putChild("control_dimmer", Control_dimmer(self.coordinator))
         root.putChild("control_stat", Control_stat(self.coordinator))
 
