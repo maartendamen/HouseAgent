@@ -1,23 +1,15 @@
 HouseAgent
 ==========
+HouseAgent is a multi-platform home and office automation system. 
 This is the main source code for HouseAgent, plugins are not included within this source code.
 
-Basic installation for Windows
-------------------------------
-To run HouseAgent on Windows you need a few prerequisites:
+HouseAgent provides a generic framework for home and office automation, it offers commonly used features such as:
 
-- RabbitMQ (http://www.rabbitmq.com/releases/rabbitmq-server/v2.4.1/rabbitmq-server-2.4.1.exe)
-- Erlang (automatically installed by the RabbitMQ installer listed above)
+* Sensor data storage system
+* A flexible plugin system to develop your own plugins
+* Graphing and reporting features
+* A message based (ZeroMQ) queuing mechanism between plugins
 
-After you have installed the prerequisites you can install HouseAgent 
-using it's setup file (available on the forum pages), beta testers only
-right now.
-
-Basic installation for Linux
-------------------------------
-Linux needs a lot more prerequisites:
-
-- RabbitMQ
-- Erlang
-- Twisted Matrix
-- Mako template engine
+Installation instructions
+-------------------------
+The latest installation instructions for HouseAgent can be found on the HouseAgent wiki: http://projects.maartendamen.com/projects/houseagent/wiki
