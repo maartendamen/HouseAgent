@@ -17,7 +17,7 @@ if os.name == "nt":
         pass        
 #from twisted.python import log as twisted_log
 from twisted.internet import reactor, task, defer
-from txZMQ import ZmqFactory, ZmqEndpoint, ZmqConnection, ZmqEndpointType
+from txzmq import ZmqFactory, ZmqEndpoint, ZmqConnection, ZmqEndpointType
 from zmq.core import constants
 from houseagent import config_file
 

@@ -1,6 +1,6 @@
 import json
 import time
-from txZMQ import ZmqFactory, ZmqEndpoint, ZmqEndpointType, ZmqConnection
+from txzmq import ZmqFactory, ZmqEndpoint, ZmqEndpointType, ZmqConnection
 from twisted.internet.defer import inlineCallbacks
 from twisted.internet.task import deferLater
 from twisted.internet import reactor, defer
@@ -125,7 +125,7 @@ class Coordinator(object):
         
         @return: nothing
         '''
-        self.broker = Broker(self.factory, self, ZmqEndpoint(ZmqEndpointType.Bind, 'tcp://%s:%s' % (host, port)))
+        self.broker = Broker(self.factory, self, ZmqEndpoint(ZmqEndpointType.bind, 'tcp://%s:%s' % (host, port)))
 
     def handle_plugin_ready(self, routing_info, payload):
         '''
