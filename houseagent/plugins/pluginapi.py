@@ -93,7 +93,7 @@ class PluginAPI(object):
         self.isready = False
         
         # Set-up connection
-        self.connection = PluginConnection(self.factory, self, ZmqEndpoint(ZmqEndpointType.Connect, 
+        self.connection = PluginConnection(self.factory, self, ZmqEndpoint(ZmqEndpointType.connect, 
                                                                      'tcp://%s:%s' % (broker_host, broker_port)))
                 
         # Handle callbacks
