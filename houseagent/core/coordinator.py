@@ -201,11 +201,11 @@ class Coordinator(object):
                     if self.eventengine:
                         self.eventengine.device_value_changed(value_id, message["values"][key])
                         
-    def send_custom(self, plugin_id, action, parameters):
+    def send_custom(self, plugin_guid, action, parameters):
         '''
         Send custom command to a plugin
         
-        @param plugin_id: the id of the plugin
+        @param plugin_guid: the guid of the plugin
         @param action: the action to send
         @param parameters: the parameters for the action
         
@@ -216,12 +216,12 @@ class Coordinator(object):
                    'parameters': parameters,
                    'type': 'custom'}
         
-        return self.send_command(plugin_id, content)
+        return self.send_command(plugin_guid, content)
     
-    def send_poweron(self, plugin_id, address):
+    def send_poweron(self, plugin_guid, address):
         '''
         Send power on request to device.
-        @param plugin_id: the id of the plugin
+        @param plugin_guid: the guid of the plugin
         @param address: the address of the device
         
         @return: a Twisted deferred which will callback with the result
@@ -229,12 +229,12 @@ class Coordinator(object):
         content = {'address': address,
                    'type': 'poweron'}
         
-        return self.send_command(plugin_id, content)
+        return self.send_command(plugin_guid, content)
         
-    def send_poweroff(self, plugin_id, address):
+    def send_poweroff(self, plugin_guid, address):
         '''
         Send power off request to device.
-        @param plugin_id: the id of the plugin
+        @param plugin_guid: the guid of the plugin
         @param address: the address of the device
         
         @return: a Twisted deferred which will callback with the result
@@ -242,14 +242,14 @@ class Coordinator(object):
         content = {'address': address,
                    'type': 'poweroff'}
         
-        return self.send_command(plugin_id, content)
+        return self.send_command(plugin_guid, content)
         
-    def send_thermostat_setpoint(self, plugin_id, address, temperature):
+    def send_thermostat_setpoint(self, plugin_guid, address, temperature):
         '''
         Send thermostat setpoint request to specified device.
-        @param plugin_id: the id of the plugin
+        @param plugin_guid: the id of the plugin
         @param address: the address of the device
-        @param temperature: the tempreature to set
+        @param temperature: the temperature to set
         
         @return: a Twisted deferred which will callback with the result
         '''
@@ -257,16 +257,16 @@ class Coordinator(object):
                    'type': 'thermostat_setpoint', 
                    'temperature': temperature}
         
-        return self.send_command(plugin_id, content)
+        return self.send_command(plugin_guid, content)
 
-    def send_command(self, plugin_id, content):
+    def send_command(self, plugin_guid, content):
         '''
-        Send command to specified plugin_id
+        Send command to specified plugin_guid
         
-        @param plugin_id: the ID of the plugin
+        @param plugin_guid: the guid of the plugin
         @param content: the content to send
         '''
-        p = self.plugin_by_id(plugin_id)
+        p = self.plugin_by_guid(plugin_guid)
         if p:
             return self.broker.send_rpc(p.routing_info, content)
         else:
@@ -315,6 +315,17 @@ class Coordinator(object):
         for p in self.plugins:
             if p.guid == guid:
                 return p.id
+    
+    def plugin_guid_by_id(self, id):
+        '''
+        This helper function returns a plugin_id based upon a plugin's GUID.
+        @param guid: the plugin guid
+        
+        @return: returns a Plugin ID 
+        '''
+        for p in self.plugins:
+            if p.id == id:
+                return p.guid
             
     def plugin_by_id(self, id):
         '''

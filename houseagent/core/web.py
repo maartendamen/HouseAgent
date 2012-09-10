@@ -469,10 +469,12 @@ class ValuePowerOnOffResult(Resource):
             request.write(str(result))
             request.finish()
         
+        plugin_guid = self.coordinator.plugin_guid_by_id(self.plugin_id)
+        
         if self.action == 'poweron':
-            self.coordinator.send_poweron(self.plugin_id, self.device_address).addCallback(control_result)
+            self.coordinator.send_poweron(plugin_guid, self.device_address).addCallback(control_result)
         elif self.action == 'poweroff':
-            self.coordinator.send_poweroff(self.plugin_id, self.device_address).addCallback(control_result)        
+            self.coordinator.send_poweroff(plugin_guid, self.device_address).addCallback(control_result)        
         return NOT_DONE_YET
     
 class Values(HouseAgentREST):
