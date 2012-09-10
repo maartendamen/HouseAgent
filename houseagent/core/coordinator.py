@@ -266,7 +266,7 @@ class Coordinator(object):
         @param plugin_id: the ID of the plugin
         @param content: the content to send
         '''
-        p = self.plugin_by_guid(plugin_id)
+        p = self.plugin_by_id(plugin_id)
         if p:
             return self.broker.send_rpc(p.routing_info, content)
         else:

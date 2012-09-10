@@ -551,8 +551,8 @@ class Values(HouseAgentREST):
                     device_address = obj.device_address 
                     plugin_id = obj.plugin_id
                     
-                    if action == 'poweron' or action == 'poweroff':                       
-                        return ValuePowerOnOffResult(device_address, plugin_id, self.coordinator, action)
+                    if action == 'poweron' or action == 'poweroff':      
+                        return ValuePowerOnOffResult(plugin_id, device_address, self.coordinator, action)
         
 class Values_view(Resource):
     
