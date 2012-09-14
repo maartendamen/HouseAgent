@@ -426,7 +426,7 @@ class Value(Resource):
     '''
     This object represents a Value.
     '''
-    def __init__(self, id, name, value, device, device_address, location, plugin, lastupdate, history_type, history_period, control_type, plugin_id):
+    def __init__(self, id, name, value, device, device_address, location, plugin, lastupdate, history_type, history_period, control_type, plugin_id, label):
         Resource.__init__(self)
         self.id = id
         self.name = name
@@ -440,11 +440,12 @@ class Value(Resource):
         self.history_period = history_period
         self.control_type = control_type
         self.plugin_id = plugin_id
+        self.label = label
         
     def json(self):
         return {'id': self.id, 'name': self.name, 'value': self.value, 'device': self.device, 'device_address': self.device_address,
                 'location': self.location, 'plugin': self.plugin, 'lastupdate': self.lastupdate, 'history_type': self.history_type,
-                'control_type': self.control_type, 'history_period': self.history_period, 'plugin_id': self.plugin_id}
+                'control_type': self.control_type, 'history_period': self.history_period, 'plugin_id': self.plugin_id, 'label': self.label}
     
     def render_GET(self, request):
         return json.dumps(self.json())
@@ -507,7 +508,7 @@ class Values(HouseAgentREST):
         value_query = yield self.db.query_values()
         
         for value in value_query:
-            val = Value(value[7], value[0], value[1], value[2], value[5], value[6], value[4], value[3], value[10], value[11], value[8], value[12])
+            val = Value(value[7], value[0], value[1], value[2], value[5], value[6], value[4], value[3], value[10], value[11], value[8], value[12], value[13])
             self._objects.append(val)
     
     @inlineCallbacks
@@ -518,8 +519,9 @@ class Values(HouseAgentREST):
     
     @inlineCallbacks
     def _edit(self, parameters):       
-        yield self.db.save_device(parameters['name'][0], parameters['address'][0], parameters['plugin'][0], 
-                                  parameters['location'][0], parameters['id'][0])
+        yield self.db.save_value(parameters['label'][0], parameters['history_type'][0], parameters['history_period'][0], 
+                                  parameters['control_type'][0], parameters['id'][0])
+
         self._reload()
         self._done()
     
