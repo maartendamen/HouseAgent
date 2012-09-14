@@ -174,6 +174,10 @@ class Database():
                     self.log.info("Successfully upgraded database schema")
                 except:
                     self.log.error("Database schema upgrade failed (%s)" % sys.exc_info()[1])
+ 
+# Versie 0.3!                   
+#ALTER TABLE current_values
+#  ADD COLUMN label varchar(50);
 
     def query_plugin_auth(self, authcode):
         return self.dbpool.runQuery("SELECT authcode, id from plugins WHERE authcode = '%s'" % authcode)
@@ -356,6 +360,16 @@ class Database():
                                     "LEFT OUTER JOIN locations ON (devices.location_id = locations.id) " +
                                     "WHERE plugin_id=? ", [plugin_id])
 
+    def add_value_with_label(self, value_id, label, device_id):
+        '''
+        This function inserts a value into the database with a predefined label.
+        @param value_id: the unique identifier of the value. 
+        @param label: the predfined label of the value.
+        @param device_id: the id of the device.
+        '''
+        return self.dbpool.runQuery("INSERT into current_values (name, label, device_id) VALUES (?, ?, ?)", (value_id, label, device_id))
+        
+
     @inlineCallbacks
     def update_or_add_value(self, name, value, pluginid, address, time=None):
         '''
@@ -466,6 +480,10 @@ class Database():
             return self.dbpool.runQuery("UPDATE devices SET name=?, address=?, plugin_id=?, location_id=? WHERE id=?", \
                                         (name, address, plugin_id, location_id, id)).addCallback(self.cb_device_crud, "update", id)
 
+    def save_value(self, label, history_type, history_period, control_type, id):
+        return self.dbpool.runQuery("UPDATE current_values SET label=?, history_type_id=?, history_period_id=?, control_type_id=? WHERE id=?", \
+                                    (label, history_type, history_period, control_type, id))     
+
     def del_device(self, id):
         
         def delete(result, id):
@@ -505,7 +523,7 @@ class Database():
     def query_values(self):
         return self.dbpool.runQuery("SELECT current_values.name, current_values.value, devices.name, " + 
                                "current_values.lastupdate, plugins.name, devices.address, locations.name, current_values.id" + 
-                               ", control_types.name, control_types.id, history_types.name, history_periods.name, plugins.id FROM current_values INNER " +
+                               ", control_types.name, control_types.id, history_types.name, history_periods.name, plugins.id, current_values.label FROM current_values INNER " +
                                "JOIN devices ON (current_values.device_id = devices.id) INNER JOIN plugins ON (devices.plugin_id = plugins.id) " + 
                                "LEFT OUTER JOIN locations ON (devices.location_id = locations.id) " + 
                                "LEFT OUTER JOIN control_types ON (current_values.control_type_id = control_types.id) " +
