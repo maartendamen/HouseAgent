@@ -457,10 +457,11 @@ class Value(Resource):
     
 class ValuePowerOnOffResult(Resource):
     
-    def __init__(self, plugin_id, device_address, coordinator, action):
+    def __init__(self, plugin_id, device_address, value_id, coordinator, action):
         Resource.__init__(self)
         self.plugin_id = plugin_id
         self.device_address = device_address
+        self.value_id = value_id
         self.coordinator = coordinator
         self.action = action
         
@@ -473,9 +474,9 @@ class ValuePowerOnOffResult(Resource):
         plugin_guid = self.coordinator.plugin_guid_by_id(self.plugin_id)
         
         if self.action == 'poweron':
-            self.coordinator.send_poweron(plugin_guid, self.device_address).addCallback(control_result)
+            self.coordinator.send_poweron(plugin_guid, self.device_address, self.value_id).addCallback(control_result)
         elif self.action == 'poweroff':
-            self.coordinator.send_poweroff(plugin_guid, self.device_address).addCallback(control_result)        
+            self.coordinator.send_poweroff(plugin_guid, self.device_address, self.value_id).addCallback(control_result)        
         return NOT_DONE_YET
     
 class Values(HouseAgentREST):
@@ -504,7 +505,7 @@ class Values(HouseAgentREST):
     @inlineCallbacks            
     def _load(self):
         '''
-        Load plugins from the database.
+        Load values from the database.
         '''
         self._objects = []
         value_query = yield self.db.query_values()
@@ -555,8 +556,8 @@ class Values(HouseAgentREST):
                     device_address = obj.device_address 
                     plugin_id = obj.plugin_id
                     
-                    if action == 'poweron' or action == 'poweroff':      
-                        return ValuePowerOnOffResult(plugin_id, device_address, self.coordinator, action)
+                    if action == 'poweron' or action == 'poweroff':   
+                        return ValuePowerOnOffResult(plugin_id, device_address, obj.name, self.coordinator, action)
         
 class Values_view(Resource):
     

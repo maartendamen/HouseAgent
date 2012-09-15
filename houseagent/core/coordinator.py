@@ -218,7 +218,7 @@ class Coordinator(object):
         
         return self.send_command(plugin_guid, content)
     
-    def send_poweron(self, plugin_guid, address):
+    def send_poweron(self, plugin_guid, address, value_id = None):
         '''
         Send power on request to device.
         @param plugin_guid: the guid of the plugin
@@ -227,11 +227,12 @@ class Coordinator(object):
         @return: a Twisted deferred which will callback with the result
         '''
         content = {'address': address,
-                   'type': 'poweron'}
+                   'type': 'poweron',
+                   'value_id': value_id}
         
         return self.send_command(plugin_guid, content)
         
-    def send_poweroff(self, plugin_guid, address):
+    def send_poweroff(self, plugin_guid, address, value_id = None):
         '''
         Send power off request to device.
         @param plugin_guid: the guid of the plugin
@@ -240,7 +241,8 @@ class Coordinator(object):
         @return: a Twisted deferred which will callback with the result
         '''
         content = {'address': address,
-                   'type': 'poweroff'}
+                   'type': 'poweroff',
+                   'value_id': value_id}
         
         return self.send_command(plugin_guid, content)
         
