@@ -26,7 +26,7 @@ class Database():
             self.dbpool = ConnectionPool("sqlite3", db_location, check_same_thread=False, cp_max=1)
        
         # Check database schema version and upgrade when required
-        self.updatedb('0.2')
+        self.updatedb('0.3')
              
     def updatedb(self, dbversion):
         '''
@@ -88,7 +88,7 @@ class Database():
                     txn.execute("INSERT INTO devices SELECT id, name, address, plugin_id, location_id FROM devices_backup")
                     txn.execute("DROP TABLE devices_backup")
 
-                    self.log.info("Successfully upgraded database schema")
+                    self.log.info("Successfully upgraded database schema to schema version 0.1")
                 except:
                     self.log.error("Database schema upgrade failed (%s)" % sys.exc_info()[1])
 
@@ -171,13 +171,22 @@ class Database():
                     txn.execute("UPDATE control_types SET name='Switch (On/off)' WHERE id=1;")
                     txn.execute("UPDATE control_types SET name='Thermostat (Setpoint)' WHERE id=2;")
 
-                    self.log.info("Successfully upgraded database schema")
+                    self.log.info("Successfully upgraded database schema to schema version 0.2")
                 except:
                     self.log.error("Database schema upgrade failed (%s)" % sys.exc_info()[1])
  
-# Versie 0.3!                   
-#ALTER TABLE current_values
-#  ADD COLUMN label varchar(50);
+            elif version == '0.2':
+                # update DB schema version to '0.3'
+                try:
+                    # update common table
+                    txn.execute("UPDATE common SET parm_value=0.3 WHERE parm='schema_version';")
+
+                    # history_periods table
+                    txn.execute("ALTER TABLE current_values ADD COLUMN label varchar(50);")
+                    
+                    self.log.info("Successfully upgraded database schema to schema version 0.3")
+                except: 
+                    self.log.error("Database schema upgrade failed (%s)" % sys.exc_info()[1])
 
     def query_plugin_auth(self, authcode):
         return self.dbpool.runQuery("SELECT authcode, id from plugins WHERE authcode = '%s'" % authcode)
@@ -599,12 +608,10 @@ class Database():
 
     # /history collector stuff
 
-    def query_controllable_devices(self):
-        return self.dbpool.runQuery("SELECT devices.name, devices.address, plugins.name, plugins.authcode, current_values.value, devices.id, control_types.name, current_values.id FROM current_values " +
-                                    "INNER JOIN devices ON (current_values.device_id = devices.id) " +
-                                    "INNER JOIN plugins ON (devices.plugin_id = plugins.id) " +
-                                    "INNER JOIN control_types ON (current_values.control_type_id = control_types.id) " +
-                                    "WHERE current_values.control_type_id != 0")
+    def query_controllable_values(self):
+        return self.dbpool.runQuery("SELECT current_values.id, devices.name, current_values.label, current_values.value, control_types.name FROM current_values" +
+                                    " INNER JOIN devices ON (current_values.device_id = devices.id) INNER JOIN control_types ON (current_values.control_type_id = control_types.id)" +
+                                    " WHERE current_values.control_type_id != 0")
     
     def query_action_types_by_device_id(self, device_id):
         return self.dbpool.runQuery("SELECT current_values.id, current_values.name, control_types.name FROM current_values " +

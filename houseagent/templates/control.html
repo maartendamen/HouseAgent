@@ -68,31 +68,30 @@ $(document).ready(function()
 				<table class="InfoTable" cellspacing="0" cellpadding="0" border="0" width="100%">
 					<tbody>
 						<tr class="HeadTable">
-							<td nowrap="" width="5%">Device Name</td>
-							<td nowrap="" width="5%">Device Address</td>
-							<td nowrap="" width="12%">Plugin</td>
+							<td nowrap="" width="5%">Actions</td>
+							<td nowrap="" width="5%">Device name</td>
+							<td nowrap="" width="12%">Label</td>
 							<td nowrap="" width="12%">Status</td>
-							<td nowrap="" width="12%">Actions</td>
 						</tr>
 						% for device in result:
 						<tr class="Row">
-							<td>${device[0]}</td>
-							<td>${device[1]}</td>
-							<td>${device[2]}</td>
-							<td id='status${device[5]}'>${device[4]}</td>
 							<td>
 							
-							% if device[6] == "Switch (On/off)":
-								<button onclick='javascript:control_on_off("${device[7]}", "poweron", "status${device[5]}");' class="ui-button ui-button-text-only ui-widget ui-state-default ui-corner-all">
+							% if device[4] == "CONTROL_TYPE_ON_OFF":
+								<button onclick='javascript:control_on_off("${device[0]}", "poweron", "status${device[0]}");' class="ui-button ui-button-text-only ui-widget ui-state-default ui-corner-all">
 								   <span class="ui-button-text">On</span>
 								</button> 
-								<button onclick='javascript:control_on_off("${device[7]}", "poweroff", "status${device[5]}");' class="ui-button ui-button-text-only ui-widget ui-state-default ui-corner-all">
+								<button onclick='javascript:control_on_off("${device[0]}", "poweroff", "status${device[0]}");' class="ui-button ui-button-text-only ui-widget ui-state-default ui-corner-all">
 								   <span class="ui-button-text">Off</span>
 								</button>
-							% elif device[6] == "CONTROL_TYPE_THERMOSTAT":
-								<input value='${device[4]}' id='stat${device[5]}' size=1 type="input" class="spin" value="22" /> <button onclick='javascript:thermostat_set("${device[3]}", "${device[1]}", "${device[5]}");' class="ui-button ui-button-text-only ui-widget ui-state-default ui-corner-all"><span class="ui-button-text">Set</span></button>
+							% elif device[4] == "CONTROL_TYPE_THERMOSTAT":
+								<input value='${device[2]}' id='stat${device[0]}' size=1 type="input" class="spin" value="22" /> <button onclick='javascript:thermostat_set("${device[3]}", "${device[1]}", "${device[4]}");' class="ui-button ui-button-text-only ui-widget ui-state-default ui-corner-all"><span class="ui-button-text">Set</span></button>
 							% endif					
 							</td>
+
+							<td>${device[1]}</td>
+							<td>${device[2]}</td>
+							<td id='status${device[0]}'>${device[4]}</td>
 						</tr>
 						% endfor
 					</tbody>

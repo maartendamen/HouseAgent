@@ -1191,7 +1191,7 @@ class Control(Resource):
     
     def render_GET(self, request):
         self.request = request
-        self.db.query_controllable_devices().addCallback(self.valueProcessor)
+        self.db.query_controllable_values().addCallback(self.valueProcessor)
         return NOT_DONE_YET
     
 class Control_dimmer(Resource):
