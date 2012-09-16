@@ -116,10 +116,6 @@ class PluginAPI(object):
                 self.poweron_callback = callbacks[callback]
             elif callback == 'poweroff':
                 self.poweroff_callback = callbacks[callback]
-            elif callback == 'poweron_v2':
-                self.poweron_v2_callback = callbacks[callback]
-            elif callback == 'poweroff_v2':
-                self.poweroff_v2_callback = callbacks[callback]
             elif callback == 'custom':
                 self.custom_callback = callbacks[callback]
             elif callback == 'thermostat_setpoint':
@@ -143,15 +139,19 @@ class PluginAPI(object):
             if self.custom_callback:
                 self.call_callback(self.custom_callback, message_id, message['action'], message['parameters'])
         elif message['type'] == 'poweron':
-            if self.poweron_v2_callback:
-                self.call_callback(self.poweron_v2_callback, message_id, message['address'], message['value_id'])
-            elif self.poweron_callback:
-                self.call_callback(self.poweron_callback, message_id, message['address'])
+            
+            if message.has_key('value_id'):
+                self.call_callback(self.poweron_callback, message_id, message['address'], message['value_id'])
+            else:
+                self.call_callback(self.poweron_callback, message_id, message['address'])     
+
         elif message['type'] == 'poweroff':
-            if self.poweroff_v2_callback:
-                self.call_callback(self.poweroff_v2_callback, message_id, message['address'], message['value_id'])
-            elif self.poweroff_callback:
+            
+            if message.has_key('value_id'):
+                self.call_callback(self.poweroff_callback, message_id, message['address'], message['value_id'])
+            else:
                 self.call_callback(self.poweroff_callback, message_id, message['address'])
+                
         elif message['type'] == 'dim':
             if self.dim_callback:
                 self.call_callback(self.dim_callback, message_id, message['address'], message['level'])

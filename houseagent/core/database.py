@@ -368,7 +368,14 @@ class Database():
         @param device_id: the id of the device.
         '''
         return self.dbpool.runQuery("INSERT into current_values (name, label, device_id) VALUES (?, ?, ?)", (value_id, label, device_id))
-        
+      
+    def del_value_by_name_and_device_id(self, name, device_id):
+        '''
+        This function deletes a value by name and device_id.
+        @param name: the name of the value
+        @param device_id: the device_id
+        '''
+        return self.dbpool.runQuery("DELETE from current_values WHERE name=? and device_id=?", (name, device_id))  
 
     @inlineCallbacks
     def update_or_add_value(self, name, value, pluginid, address, time=None):
