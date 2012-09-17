@@ -183,6 +183,11 @@ class Database():
 
                     # history_periods table
                     txn.execute("ALTER TABLE current_values ADD COLUMN label varchar(50);")
+
+                    # Control types fix
+                    txn.execute("UPDATE control_types SET name='CONTROL_TYPE_ON_OFF' WHERE id=1;")
+                    txn.execute("UPDATE control_types SET name='CONTROL_TYPE_THERMOSTAT' WHERE id=2;")
+                    txn.execute("INSERT into control_types VALUES(3, 'CONTROL_TYPE_DIMMER');")
                     
                     self.log.info("Successfully upgraded database schema to schema version 0.3")
                 except: 
