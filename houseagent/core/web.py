@@ -12,9 +12,8 @@ from mako.lookup import TemplateLookup
 from twisted.internet import defer
 from twisted.internet.defer import inlineCallbacks, returnValue
 from twisted.internet.error import CannotListenError
-from twisted.web.resource import Resource
+from twisted.web.resource import Resource, NoResource
 from twisted.web.server import NOT_DONE_YET
-from twisted.web.error import NoResource
 from uuid import uuid4
 from twisted.web import http, resource
 from houseagent.core.history import HistoryViewer
