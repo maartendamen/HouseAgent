@@ -138,26 +138,31 @@ class PluginAPI(object):
         if message['type'] == 'custom':
             if self.custom_callback:
                 self.call_callback(self.custom_callback, message_id, message['action'], message['parameters'])
+
         elif message['type'] == 'poweron':
-            
-            if message.has_key('value_id'):
-                self.call_callback(self.poweron_callback, message_id, message['address'], message['value_id'])
-            else:
-                self.call_callback(self.poweron_callback, message_id, message['address'])     
+            if self.poweron_callback:
+                if message.has_key('value_id'):
+                    self.call_callback(self.poweron_callback, message_id, message['address'], message['value_id'])
+                else:
+                    self.call_callback(self.poweron_callback, message_id, message['address'])     
 
         elif message['type'] == 'poweroff':
-            
-            if message.has_key('value_id'):
-                self.call_callback(self.poweroff_callback, message_id, message['address'], message['value_id'])
-            else:
-                self.call_callback(self.poweroff_callback, message_id, message['address'])
+            if self.poweroff_callback:
+                if message.has_key('value_id'):
+                    self.call_callback(self.poweroff_callback, message_id, message['address'], message['value_id'])
+                else:
+                    self.call_callback(self.poweroff_callback, message_id, message['address'])
                 
         elif message['type'] == 'dim':
             if self.dim_callback:
                 self.call_callback(self.dim_callback, message_id, message['address'], message['level'])
+
         elif message['type'] == 'thermostat_setpoint':
             if self.thermostat_setpoint_callback:
-                self.call_callback(self.thermostat_setpoint_callback, message_id, message['address'], message['temperature'])
+                if message.has_key('value_id'):
+                    self.call_callback(self.thermostat_setpoint_callback, message_id, message['address'], message['temperature'], message['value_id'])
+                else:
+                    self.call_callback(self.thermostat_setpoint_callback, message_id, message['address'], message['temperature'])
 
     def call_callback(self, function, message_id, *args):
         '''

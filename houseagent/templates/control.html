@@ -25,21 +25,23 @@ function control_on_off(value_id, action, statusfield)
         });
 }
 
-function thermostat_set(plugin, address, device_id)
+function thermostat_setpoint(value_id, statusfield)
 {
-    temp = $('#stat' + device_id).val();
+    temp = $('#stat' + value_id).val();
     
-    var dataString = 'plugin=' + plugin + '&address=' + address + '&temp=' + temp
-    
-    $.ajax({
-        type: "POST",
-        url: "/control_stat",
-        data: dataString,
-        succes: function(data) {
-            $('#status' + device_id).html(temp);
-        }
-    });
+        $.ajax({
+            type: "GET",            
+            url: '/values/' + value_id + '?action=thermostat_setpoint&temp=' + temp, 
+            success: function(data) {
 
+                        if (data == 0) {
+                            $('#' + statusfield).html("<font color='red'><b>Request failed!</b></font>");
+                        } else {
+                            $('#' + statusfield).html(temp);
+                        }
+                        
+                     }
+        });
 }
     
 $(document).ready(function() 
@@ -85,13 +87,14 @@ $(document).ready(function()
 								   <span class="ui-button-text">Off</span>
 								</button>
 							% elif device[4] == "CONTROL_TYPE_THERMOSTAT":
-								<input value='${device[2]}' id='stat${device[0]}' size=1 type="input" class="spin" value="22" /> <button onclick='javascript:thermostat_set("${device[3]}", "${device[1]}", "${device[4]}");' class="ui-button ui-button-text-only ui-widget ui-state-default ui-corner-all"><span class="ui-button-text">Set</span></button>
-							% endif					
+								<input value='${device[3]}' id='stat${device[0]}' size=3 type="input" class="spin" value="22" />
+								<button onclick='javascript:thermostat_setpoint("${device[0]}", "status${device[0]}");' class="ui-button ui-button-text-only ui-widget ui-state-default ui-corner-all"><span class="ui-button-text">Set</span></button>
+							% endif
 							</td>
 
 							<td>${device[1]}</td>
 							<td>${device[2]}</td>
-							<td id='status${device[0]}'>${device[4]}</td>
+							<td id='status${device[0]}'>${device[3]}</td>
 						</tr>
 						% endfor
 					</tbody>

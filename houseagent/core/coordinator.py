@@ -223,6 +223,7 @@ class Coordinator(object):
         Send power on request to device.
         @param plugin_guid: the guid of the plugin
         @param address: the address of the device
+        @param value_id: optional id of particular value to change
         
         @return: a Twisted deferred which will callback with the result
         '''
@@ -237,6 +238,7 @@ class Coordinator(object):
         Send power off request to device.
         @param plugin_guid: the guid of the plugin
         @param address: the address of the device
+        @param value_id: optional id of particular value to change
         
         @return: a Twisted deferred which will callback with the result
         '''
@@ -246,18 +248,20 @@ class Coordinator(object):
         
         return self.send_command(plugin_guid, content)
         
-    def send_thermostat_setpoint(self, plugin_guid, address, temperature):
+    def send_thermostat_setpoint(self, plugin_guid, address, temperature, value_id = None):
         '''
         Send thermostat setpoint request to specified device.
         @param plugin_guid: the id of the plugin
         @param address: the address of the device
         @param temperature: the temperature to set
+        @param value_id: optional id of particular value to change
         
         @return: a Twisted deferred which will callback with the result
         '''
         content = {'address': address,
                    'type': 'thermostat_setpoint', 
-                   'temperature': temperature}
+                   'temperature': temperature,
+                   'value_id': value_id}
         
         return self.send_command(plugin_guid, content)
 

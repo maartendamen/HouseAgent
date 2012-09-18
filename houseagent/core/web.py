@@ -94,9 +94,7 @@ class Web(object):
         root.putChild("graph_latest", GraphLatest(self.db))
         root.putChild("graph_daily", GraphDaily(self.db))
 
-        root.putChild("control", Control(self.db))        
-        root.putChild("control_dimmer", Control_dimmer(self.coordinator))
-        root.putChild("control_stat", Control_stat(self.coordinator))
+        root.putChild("control", Control(self.db))
 
         # Load plugin pages
         self.load_pages(root)
@@ -454,15 +452,16 @@ class Value(Resource):
         self.parent.delete(self)
         return NOT_DONE_YET
     
-class ValuePowerOnOffResult(Resource):
+class ValueActionResult(Resource):
     
-    def __init__(self, plugin_id, device_address, value_id, coordinator, action):
+    def __init__(self, plugin_id, device_address, value_id, coordinator, action, params):
         Resource.__init__(self)
         self.plugin_id = plugin_id
         self.device_address = device_address
         self.value_id = value_id
         self.coordinator = coordinator
         self.action = action
+        self.params = params
         
     def render_GET(self, request):
 
@@ -475,7 +474,9 @@ class ValuePowerOnOffResult(Resource):
         if self.action == 'poweron':
             self.coordinator.send_poweron(plugin_guid, self.device_address, self.value_id).addCallback(control_result)
         elif self.action == 'poweroff':
-            self.coordinator.send_poweroff(plugin_guid, self.device_address, self.value_id).addCallback(control_result)        
+            self.coordinator.send_poweroff(plugin_guid, self.device_address, self.value_id).addCallback(control_result)
+        elif self.action == 'thermostat_setpoint':
+            self.coordinator.send_thermostat_setpoint(plugin_guid, self.device_address, self.params["temp"], self.value_id).addCallback(control_result)
         return NOT_DONE_YET
     
 class Values(HouseAgentREST):
@@ -556,7 +557,10 @@ class Values(HouseAgentREST):
                     plugin_id = obj.plugin_id
                     
                     if action == 'poweron' or action == 'poweroff':   
-                        return ValuePowerOnOffResult(plugin_id, device_address, obj.name, self.coordinator, action)
+                        return ValueActionResult(plugin_id, device_address, obj.name, self.coordinator, action, {})
+                    elif action == 'thermostat_setpoint':
+                        params = {'temp': request.args['temp'][0]}
+                        return ValueActionResult(plugin_id, device_address, obj.name, self.coordinator, action, params)
         
 class Values_view(Resource):
     
@@ -1193,52 +1197,6 @@ class Control(Resource):
         self.db.query_controllable_values().addCallback(self.valueProcessor)
         return NOT_DONE_YET
     
-class Control_dimmer(Resource):
-    '''
-    Class that control dim levels of a dimmable lamp.
-    '''
-    def __init__(self, coordinator):
-        Resource.__init__(self)
-        self.coordinator = coordinator    
-    
-    def control_result(self, result):
-        print "received:", result
-        self.request.write(str(result['processed']))
-        self.request.finish()
-    
-    def render_POST(self, request):
-        self.request = request
-        plugin = request.args["plugin"][0]
-        address = request.args["address"][0]
-        level = request.args["level"][0]
-
-        self.coordinator.send_dimlevel(plugin, address, level).addCallback(self.control_result)
-                    
-        return NOT_DONE_YET    
-    
-class Control_stat(Resource):
-    '''
-    Class that control thermostat setpoint values.
-    '''
-    def __init__(self, coordinator):
-        Resource.__init__(self)
-        self.coordinator = coordinator    
-    
-    def control_result(self, result):
-        print "received:", result
-        self.request.write(str(result['processed']))
-        self.request.finish()
-    
-    def render_POST(self, request):
-        self.request = request
-        plugin = request.args["plugin"][0]
-        address = request.args["address"][0]
-        temp = request.args["temp"][0]
-
-        self.coordinator.send_thermostat_setpoint(plugin, address, temp).addCallback(self.control_result)
-                    
-        return NOT_DONE_YET    
- 
 class History(Resource):
     '''
     This turns value history on or off.
