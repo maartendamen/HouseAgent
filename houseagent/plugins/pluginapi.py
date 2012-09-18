@@ -155,7 +155,10 @@ class PluginAPI(object):
                 
         elif message['type'] == 'dim':
             if self.dim_callback:
-                self.call_callback(self.dim_callback, message_id, message['address'], message['level'])
+                if message.has_key('value_id'):
+                    self.call_callback(self.dim_callback, message_id, message['address'], message['level'], message['value_id'])
+                else:
+                    self.call_callback(self.dim_callback, message_id, message['address'], message['level'])
 
         elif message['type'] == 'thermostat_setpoint':
             if self.thermostat_setpoint_callback:

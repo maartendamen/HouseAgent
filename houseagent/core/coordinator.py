@@ -248,6 +248,23 @@ class Coordinator(object):
         
         return self.send_command(plugin_guid, content)
         
+    def send_dim(self, plugin_guid, address, level, value_id = None):
+        '''
+        Send dim request to device.
+        @param plugin_guid: the guid of the plugin
+        @param address: the address of the device
+        @param level: the dim level
+        @param value_id: optional id of particular value to change
+        
+        @return: a Twisted deferred which will callback with the result
+        '''
+        content = {'address': address,
+                   'type': 'dim',
+                   'level': level,
+                   'value_id': value_id}
+        
+        return self.send_command(plugin_guid, content)
+        
     def send_thermostat_setpoint(self, plugin_guid, address, temperature, value_id = None):
         '''
         Send thermostat setpoint request to specified device.
@@ -272,6 +289,7 @@ class Coordinator(object):
         @param plugin_guid: the guid of the plugin
         @param content: the content to send
         '''
+        self.log.debug("Sending command {0}".format(content))
         p = self.plugin_by_guid(plugin_guid)
         if p:
             return self.broker.send_rpc(p.routing_info, content)

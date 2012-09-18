@@ -44,11 +44,34 @@ function thermostat_setpoint(value_id, statusfield)
         });
 }
     
+function dim(value_id, statusfield)
+{
+    level = $('#stat' + value_id).val();
+    
+        $.ajax({
+            type: "GET",            
+            url: '/values/' + value_id + '?action=dim&level=' + level, 
+            success: function(data) {
+
+                        if (data == 0) {
+                            $('#' + statusfield).html("<font color='red'><b>Request failed!</b></font>");
+                        } else {
+                            $('#' + statusfield).html(temp);
+                        }
+                        
+                     }
+        });
+}
+    
 $(document).ready(function() 
 {
-    $('.spin').spin({
+    $('.statspin').spin({
         imageBasePath: '/images/',
-        interval: 0.1
+        interval: 0.5
+    });
+    $('.dimspin').spin({
+        imageBasePath: '/images/',
+        interval: 5
     });
 
 });
@@ -87,8 +110,11 @@ $(document).ready(function()
 								   <span class="ui-button-text">Off</span>
 								</button>
 							% elif device[4] == "CONTROL_TYPE_THERMOSTAT":
-								<input value='${device[3]}' id='stat${device[0]}' size=3 type="input" class="spin" value="22" />
+								<input value='${device[3]}' id='stat${device[0]}' size=3 type="input" class="statspin" />
 								<button onclick='javascript:thermostat_setpoint("${device[0]}", "status${device[0]}");' class="ui-button ui-button-text-only ui-widget ui-state-default ui-corner-all"><span class="ui-button-text">Set</span></button>
+							% elif device[4] == "CONTROL_TYPE_DIMMER":
+								<input value='${device[3]}' id='stat${device[0]}' size=3 type="input" class="dimspin" />
+								<button onclick='javascript:dim("${device[0]}", "status${device[0]}");' class="ui-button ui-button-text-only ui-widget ui-state-default ui-corner-all"><span class="ui-button-text">Set</span></button>
 							% endif
 							</td>
 
