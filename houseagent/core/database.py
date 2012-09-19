@@ -181,7 +181,7 @@ class Database():
                     # update common table
                     txn.execute("UPDATE common SET parm_value=0.3 WHERE parm='schema_version';")
 
-                    # history_periods table
+                    # current_values table
                     txn.execute("ALTER TABLE current_values ADD COLUMN label varchar(50);")
 
                     # Control types fix
@@ -365,7 +365,7 @@ class Database():
                                     "WHERE devices.id = ?", [device_id])
 
     def query_value_properties(self, value_id):
-        return self.dbpool.runQuery("SELECT current_values.name, devices.address, devices.plugin_id from current_values " + 
+        return self.dbpool.runQuery("SELECT current_values.name, devices.address, devices.plugin_id, current_values.label from current_values " + 
                                     "INNER JOIN devices ON (current_values.device_id = devices.id) " + 
                                     "WHERE current_values.id = ?", [value_id])
 
