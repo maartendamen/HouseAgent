@@ -10,9 +10,11 @@ except ImportError:
 
 class EventHandler(object):
     
-    def __init__(self, coordinator, database):
+    def __init__(self, log, coordinator, database):
         
+        self.log = log
         self.db = database
+        self._coordinator = coordinator
         
         self._absolute_time_schedule_calls = []
         self._triggers = []
@@ -95,6 +97,11 @@ class EventHandler(object):
                 a.address = device_properties[0][0]
                 a.plugin_id = device_properties[0][1]
                 
+                # fetch value properties
+                value_properties = yield self.db.query_value_properties(a.control_value)
+                a.control_value_id = value_properties[0][0]
+                a.control_value_name = value_properties[0][3]
+                
                 # fetch control_type
                 control_type = yield self.db.query_controltypename(a.control_value)
                 a.control_type = control_type[0][0]
@@ -147,6 +154,7 @@ class EventHandler(object):
         for t in self._triggers:
 
             if t.type == "Device value change" and int(t.current_value_id) == int(value_id):
+                self.log.debug("Found trigger for this value {0}".format(t))
                 
                 matching = True
                 
@@ -170,9 +178,13 @@ class EventHandler(object):
                         
                         if condition_check:
                             self._run_actions(t.event_id)
+                        else:
+                            self.log.debug("Conditions do not match")
                     else:
                         # no conditions, just run the actions
-                        self._run_actions(t.event_id)                     
+                        self._run_actions(t.event_id)
+                else:
+                    self.log.debug("Trigger does not match")      
 
     @inlineCallbacks
     def _absolute_time_triggered(self, eventid, conditions):
@@ -197,13 +209,18 @@ class EventHandler(object):
         '''
         This runs all the actions associated with a certain eventid.
         '''
-        print "should run action"
+        self.log.debug("Running actions for eventid {0}".format(eventid))
         for a in self._actions:
-            if a.event_id == eventid:   
+            if a.event_id == eventid:
+                self.log.debug("Executing action {0}".format(a))
                 if a.type == "Device action" and a.control_type == "CONTROL_TYPE_ON_OFF" and int(a.command) == 1:
-                    self._coordinator.send_poweron(a.plugin_id, a.address)
+                    self._coordinator.send_poweron(a.plugin_id, a.address, a.control_value_id)
+                elif a.type == "Device action" and a.control_type == "CONTROL_TYPE_ON_OFF" and int(a.command) == 0:
+                    self._coordinator.send_poweroff(a.plugin_id, a.address, a.control_value_id)
                 elif a.type == "Device action" and a.control_type == "CONTROL_TYPE_THERMOSTAT":
-                    self._coordinator.send_thermostat_setpoint(a.plugin_id, a.address, a.command)
+                    self._coordinator.send_thermostat_setpoint(a.plugin_id, a.address, a.command, a.control_value_id)
+                elif a.type == "Device action" and a.control_type == "CONTROL_TYPE_DIMMER":
+                    self._coordinator.send_dim(a.plugin_id, a.address, a.command, a.control_value_id)
 
     @inlineCallbacks            
     def _check_conditions(self, eventid):
@@ -291,3 +308,8 @@ class Action(object):
         self.control_value = None
         self.command = None
         self.control_value_name = None
+        self.control_value_id = None
+
+    def __str__(self):
+        return "type: [{0}] event_id: [{1}] plugin_id: [{2}] address: [{3}] control_type: [{4}] device: [{5}] control_value: [{6}] command: [{7}] control_value_name: [{8}] control_value_id: [{9}]".format(
+                self.type, self.event_id, self.plugin_id, self.address, self.control_type, self.device, self.control_value, self.command, self.control_value_name, self.control_value_id)

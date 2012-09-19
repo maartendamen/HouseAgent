@@ -86,6 +86,8 @@ $(document).ready(function()
 							                 Turn device '${a.device}' (${a.control_value_name}) ${a.command}
 							            % elif a.control_type == "CONTROL_TYPE_THERMOSTAT":
 							                 Set thermostat setpoint '${a.device}' (${a.control_value_name}) to '${a.command}'
+							            % elif a.control_type == "CONTROL_TYPE_DIMMER":
+							                 Set dim level '${a.device}' (${a.control_value_name}) to '${a.command}'
 							            % endif
 							         % endif
 							     % endif
@@ -103,4 +105,4 @@ $(document).ready(function()
 		</tr>
 	</tbody>
 </table>
-</%def>
+</%def

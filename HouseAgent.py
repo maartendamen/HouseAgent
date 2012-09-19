@@ -31,7 +31,7 @@ class MainWrapper():
         coordinator.init_broker(config.zmq.broker_host, config.zmq.broker_port)
         
         self.log.debug("Starting HouseAgent event handler...")
-        event_handler = EventHandler(coordinator, database)
+        event_handler = EventHandler(self.log, coordinator, database)
 
         self.log.debug("Starting Houseagent history aggregator")
         histagg = HistoryAggregator(database)

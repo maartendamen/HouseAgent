@@ -73,6 +73,18 @@ $(document).ready(function()
                                                         "command": setpoint } };                
         }
 
+        /* Dimmer */
+        if (command.text() == "Set dim level") {
+            var level = $("#dimmer_level").val();
+            $('#action_list tr:last').after('<tr class="Row"><td>Set dim level "' + device.text() + 
+            '" (' + control_value.text() + ') to "' + level  + '"</td></tr>');        
+            
+            var action_data = { "action_type" : action_type,
+                                 "parameters"       : { "device" : device.val(),
+                                                        "control_value" : control_value.val(),
+                                                        "command": level } };                
+        }
+
         stored_actions.push(action_data);
     }
 	
@@ -193,10 +205,18 @@ $(document).ready(function()
 	       $("#control_types_placeholder").show();
 	       $("#control_types").removeOption(/./);
 	       $("#control_types").ajaxAddOption("/event_control_types_by_id", {"valueid" : selected.val()}, false, function() {
-	           if ($("#control_types option:selected").text() ==  "Set thermostat setpoint") 
+	           if ($("#control_types option:selected").text() ==  "Set thermostat setpoint") {
                     $('#control_types_thermostat').show();
-               else
+                    $('#control_types_dimmer').hide();
+	           }
+	           else if ($("#control_types option:selected").text() ==  "Set dim level") {
                     $('#control_types_thermostat').hide();
+                    $('#control_types_dimmer').show();
+               }
+               else {
+                    $('#control_types_thermostat').hide();
+                    $('#control_types_dimmer').hide();
+               }
 	       });                    
         }       
        });
@@ -381,7 +401,7 @@ $(document).ready(function()
 										</td>
 										<td>
 											<input type="radio" name="event_enabled" value="yes">Yes
-											<input type="radio" name="event_enabled" value="no" checked>No
+											<input type="radio" name="event_enabled" value="no">No
 										</td>
 									</tr>
 								</tbody>
@@ -637,6 +657,14 @@ $(document).ready(function()
                                             <input class="Field250" id="thermostat_setpoint"></input>                              
                                         </td>
                                     </tr>
+                                    <tr id="control_types_dimmer" style="display: none;">
+                                        <td class="Label">
+                                            Setpoint:
+                                        </td>
+                                        <td>
+                                            <input class="Field250" id="dimmer_level"></input>                              
+                                        </td>
+                                    </tr>
                                 </tbody>
                             </table>
                         </form>
@@ -667,4 +695,4 @@ $(document).ready(function()
 		</tr>
 	</tbody>
 </table>
-</%def>
+</%def
