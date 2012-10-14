@@ -94,6 +94,7 @@ $(document).ready(function()
 					<tbody>
 						<tr class="HeadTable">
 							<td nowrap="" width="5%">Actions</td>
+							<td nowrap="" width="5%">Id</td>
 							<td nowrap="" width="5%">Device name</td>
 							<td nowrap="" width="12%">Label</td>
 							<td nowrap="" width="12%">Status</td>
@@ -118,6 +119,7 @@ $(document).ready(function()
 							% endif
 							</td>
 
+							<td>${device[0]}</td>
 							<td>${device[1]}</td>
 							<td>${device[2]}</td>
 							<td id='status${device[0]}'>${device[3]}</td>
