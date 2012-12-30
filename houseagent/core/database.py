@@ -465,10 +465,10 @@ class Database():
         @param location: the name of the location associated with the device
         '''
         if action == "create":
-            parms = yield self.dbpool.runQuery("SELECT plugins.authcode, devices.address, devices.name, locations.name FROM devices, plugins, locations WHERE devices.plugin_id = plugins.id AND devices.location_id = locations.id ORDER BY devices.id DESC LIMIT 1")
+            parms = yield self.dbpool.runQuery("SELECT plugins.authcode, devices.address, devices.name, locations.name FROM devices LEFT JOIN plugins ON devices.plugin_id = plugins.id LEFT JOIN locations ON devices.location_id = locations.id ORDER BY devices.id DESC LIMIT 1")
             
         if action == "update":
-            parms = yield self.dbpool.runQuery("SELECT plugins.authcode, devices.address, devices.name, locations.name FROM devices, plugins, locations WHERE devices.plugin_id = plugins.id AND devices.location_id = locations.id AND devices.id=?", [id])
+            parms = yield self.dbpool.runQuery("SELECT plugins.authcode, devices.address, devices.name, locations.name FROM devices LEFT JOIN plugins ON devices.plugin_id = plugins.id LEFT JOIN locations ON devices.location_id = locations.id WHERE devices.id=?", [id])
 
         if action != "delete":
             plugin = parms[0][0]
@@ -510,8 +510,9 @@ class Database():
         def delete(result, id):
             self.dbpool.runQuery("DELETE FROM devices WHERE id=?", [id]).addCallback(self.cb_device_crud, "delete", id, result[0][0], result[0][1], result[0][2], result[0][3])
         
-        return self.dbpool.runQuery("SELECT plugins.authcode, devices.address, devices.name, locations.name FROM plugins, devices, locations " +
-                                    "WHERE devices.plugin_id = plugins.id AND devices.location_id = locations.id AND devices.id=?", [id]).addCallback(delete, id)
+        return self.dbpool.runQuery("SELECT plugins.authcode, devices.address, devices.name, locations.name " +
+                                    "FROM devices LEFT JOIN plugins ON devices.plugin_id = plugins.id LEFT JOIN locations ON devices.location_id = locations.id " +
+                                    "WHERE devices.id=?", [id]).addCallback(delete, id)
 
     def del_location(self, id):
         return self.dbpool.runQuery("DELETE FROM locations WHERE id=?", [id])

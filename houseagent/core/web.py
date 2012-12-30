@@ -401,8 +401,7 @@ class Devices(HouseAgentREST):
     
     @inlineCallbacks
     def _edit(self, parameters):       
-        yield self.db.set_history(parameters['id'][0], parameters['history_period'][0], parameters['history_type'][0])
-        yield self.db.set_controltype(parameters['id'][0], parameters['control_type'][0])
+        yield self.db.save_device(parameters['name'][0], parameters['address'][0], parameters['plugin'][0], parameters['location'][0], parameters['id'][0])
         self._reload()
         self._done()
     
