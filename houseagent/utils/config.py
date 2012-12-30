@@ -141,9 +141,9 @@ class _ConfigZMQ:
 
     def __init__(self, parser):
         self.broker_host = _getOpt(
-                parser.get, "zmq", "host", "*")
+                parser.get, "zmq", "broker_host", "*")
         self.broker_port = _getOpt(
-                parser.getint, "zmq", "port", 13001)
+                parser.getint, "zmq", "broker_port", 13001)
         
 class _ConfigEmbedded:
     
