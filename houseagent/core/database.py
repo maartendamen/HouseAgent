@@ -391,6 +391,13 @@ class Database():
         '''
         return self.dbpool.runQuery("DELETE from current_values WHERE name=? and device_id=?", (name, device_id))  
 
+    def del_value(self, id):
+        '''
+        This function deletes a value by id.
+        @param id: the value id
+        '''
+        return self.dbpool.runQuery("DELETE from current_values WHERE id=?", [id])  
+
     @inlineCallbacks
     def update_or_add_value(self, name, value, pluginid, address, time=None):
         '''

@@ -415,7 +415,7 @@ class Value(Resource):
     '''
     This object represents a Value.
     '''
-    def __init__(self, id, name, value, device, device_address, location, plugin, lastupdate, history_type, history_period, control_type, plugin_id, label):
+    def __init__(self, id, name, value, device, device_address, location, plugin, lastupdate, history_type, history_period, control_type, plugin_id, label, parent):
         Resource.__init__(self)
         self.id = id
         self.name = name
@@ -430,6 +430,7 @@ class Value(Resource):
         self.control_type = control_type
         self.plugin_id = plugin_id
         self.label = label
+        self.parent = parent
         
     def json(self):
         return {'id': self.id, 'name': self.name, 'value': self.value, 'device': self.device, 'device_address': self.device_address,
@@ -505,14 +506,8 @@ class Values(HouseAgentREST):
         value_query = yield self.db.query_values()
         
         for value in value_query:
-            val = Value(value[7], value[0], value[1], value[2], value[5], value[6], value[4], value[3], value[10], value[11], value[8], value[12], value[13])
+            val = Value(value[7], value[0], value[1], value[2], value[5], value[6], value[4], value[3], value[10], value[11], value[8], value[12], value[13], self)
             self._objects.append(val)
-    
-    @inlineCallbacks
-    def _add(self, parameters):  
-        yield self.db.save_device(parameters['name'][0], parameters['address'][0], parameters['plugin'][0], parameters['location'][0])
-        self._reload()
-        self._done()
     
     @inlineCallbacks
     def _edit(self, parameters):       
@@ -524,7 +519,7 @@ class Values(HouseAgentREST):
     
     @inlineCallbacks
     def delete(self, obj):
-        yield self.db.del_device(int(obj.id))
+        yield self.db.del_value(int(obj.id))
         self._objects.remove(obj)
         obj.request.finish()
     
