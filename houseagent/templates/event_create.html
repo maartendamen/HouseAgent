@@ -25,6 +25,7 @@ $(document).ready(function()
     $(".absolute_time").hide();
     $(".condition_device").hide();
     $("#conditions").hide();
+    $("#add_condition").hide();
     	
 	$("#add_trigger").click(function() {
 		var trigger_type = $("#triggertype option:selected");
@@ -199,7 +200,6 @@ $(document).ready(function()
 	   $("#dev_actions").show();
        $("#control_values").removeOption(/./);
        $("#control_values").ajaxAddOption("/event_control_values_by_id", {"deviceid" : selected.val()}, false, function() {
-        if ($('#control_values option').length == 1) {
            var selected = $("#control_values option:selected");
         
 	       $("#control_types_placeholder").show();
@@ -218,19 +218,48 @@ $(document).ready(function()
                     $('#control_types_dimmer').hide();
                }
 	       });                    
-        }       
        });
                    	
 	});
 	
 	$("#control_values").change(function() {
-	   var selected = $("#control_values option:selected");
-	   
-	   $("#control_types_placeholder").show();
-       $("#control_types").removeOption(/./);
-       $("#control_types").ajaxAddOption("/event_control_types_by_id", {"valueid" : selected.val()}, false);	   
+		   var selected = $("#control_values option:selected");
+		   
+		   $("#control_types_placeholder").show();
+	       $("#control_types").removeOption(/./);
+	       $("#control_types").ajaxAddOption("/event_control_types_by_id", {"valueid" : selected.val()}, false, function() {
+	           if ($("#control_types option:selected").text() ==  "Set thermostat setpoint") {
+                   $('#control_types_thermostat').show();
+                   $('#control_types_dimmer').hide();
+	           }
+	           else if ($("#control_types option:selected").text() ==  "Set dim level") {
+                   $('#control_types_thermostat').hide();
+                   $('#control_types_dimmer').show();
+              }
+              else {
+                   $('#control_types_thermostat').hide();
+                   $('#control_types_dimmer').hide();
+              }
+	       });                    
 	});
-	
+		
+	$("#control_types").change(function() {
+		   var selected = $("#control_types option:selected");
+		   
+           if (selected.text() ==  "Set thermostat setpoint") {
+               $('#control_types_thermostat').show();
+               $('#control_types_dimmer').hide();
+           }
+           else if (selected.text() ==  "Set dim level") {
+               $('#control_types_thermostat').hide();
+               $('#control_types_dimmer').show();
+           }
+           else {
+               $('#control_types_thermostat').hide();
+               $('#control_types_dimmer').hide();
+           }
+		});
+		
 	$("#device_values").change(function() {
 		var selected = $("#device_values option:selected");
 		getCurrentValue(selected.val());
@@ -276,12 +305,15 @@ $(document).ready(function()
 	/* Conditions */
 	$("input[name='conditions_radio']").change(function() {
 	
-	   if ($("input[name='conditions_radio']:checked").val() == 'true')
+	   if ($("input[name='conditions_radio']:checked").val() == 'true') {
 	       $("#conditions").show();
-	   else if ($("input[name='conditions_radio']:checked").val() == 'false')
+	       $("#add_condition").show();
+	   } else if ($("input[name='conditions_radio']:checked").val() == 'false') {
 	       $("#conditions").hide();
 	       $(".condition_device").hide();
-	       
+	       $("#add_condition").hide();
+	   }
+	   
 	});
 	
 	$("#condition_type").change(function(){
@@ -659,7 +691,7 @@ $(document).ready(function()
                                     </tr>
                                     <tr id="control_types_dimmer" style="display: none;">
                                         <td class="Label">
-                                            Setpoint:
+                                            Level:
                                         </td>
                                         <td>
                                             <input class="Field250" id="dimmer_level"></input>                              
@@ -695,4 +727,4 @@ $(document).ready(function()
 		</tr>
 	</tbody>
 </table>
-</%def
+</%def>
