@@ -560,7 +560,7 @@ class Database():
                                "LEFT OUTER JOIN history_periods ON (current_values.history_period_id = history_periods.id)")
 
     def query_values_light(self):
-        return self.dbpool.runQuery("SELECT id, name, history_period_id, history_type_id FROM current_values;")
+        return self.dbpool.runQuery("SELECT id, IFNULL(label, name), history_period_id, history_type_id FROM current_values;")
 
     def query_devices(self):      
         return self.dbpool.runQuery("SELECT devices.id, devices.name, devices.address, plugins.name, locations.name from devices " +
