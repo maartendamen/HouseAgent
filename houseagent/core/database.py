@@ -26,7 +26,7 @@ class Database():
             self.dbpool = ConnectionPool("sqlite3", db_location, check_same_thread=False, cp_max=1)
        
         # Check database schema version and upgrade when required
-        self.updatedb('0.2')
+        self.updatedb('0.3')
              
     def updatedb(self, dbversion):
         '''
@@ -88,7 +88,7 @@ class Database():
                     txn.execute("INSERT INTO devices SELECT id, name, address, plugin_id, location_id FROM devices_backup")
                     txn.execute("DROP TABLE devices_backup")
 
-                    self.log.info("Successfully upgraded database schema")
+                    self.log.info("Successfully upgraded database schema to schema version 0.1")
                 except:
                     self.log.error("Database schema upgrade failed (%s)" % sys.exc_info()[1])
 
@@ -171,8 +171,26 @@ class Database():
                     txn.execute("UPDATE control_types SET name='Switch (On/off)' WHERE id=1;")
                     txn.execute("UPDATE control_types SET name='Thermostat (Setpoint)' WHERE id=2;")
 
-                    self.log.info("Successfully upgraded database schema")
+                    self.log.info("Successfully upgraded database schema to schema version 0.2")
                 except:
+                    self.log.error("Database schema upgrade failed (%s)" % sys.exc_info()[1])
+ 
+            elif version == '0.2':
+                # update DB schema version to '0.3'
+                try:
+                    # update common table
+                    txn.execute("UPDATE common SET parm_value=0.3 WHERE parm='schema_version';")
+
+                    # current_values table
+                    txn.execute("ALTER TABLE current_values ADD COLUMN label varchar(50);")
+
+                    # Control types fix
+                    txn.execute("UPDATE control_types SET name='CONTROL_TYPE_ON_OFF' WHERE id=1;")
+                    txn.execute("UPDATE control_types SET name='CONTROL_TYPE_THERMOSTAT' WHERE id=2;")
+                    txn.execute("INSERT into control_types VALUES(3, 'CONTROL_TYPE_DIMMER');")
+                    
+                    self.log.info("Successfully upgraded database schema to schema version 0.3")
+                except: 
                     self.log.error("Database schema upgrade failed (%s)" % sys.exc_info()[1])
 
     def query_plugin_auth(self, authcode):
@@ -347,7 +365,7 @@ class Database():
                                     "WHERE devices.id = ?", [device_id])
 
     def query_value_properties(self, value_id):
-        return self.dbpool.runQuery("SELECT current_values.name, devices.address, devices.plugin_id from current_values " + 
+        return self.dbpool.runQuery("SELECT current_values.name, devices.address, devices.plugin_id, current_values.label from current_values " + 
                                     "INNER JOIN devices ON (current_values.device_id = devices.id) " + 
                                     "WHERE current_values.id = ?", [value_id])
 
@@ -355,6 +373,30 @@ class Database():
         return self.dbpool.runQuery("SELECT devices.id, devices.name, devices.address, locations.name from devices " +
                                     "LEFT OUTER JOIN locations ON (devices.location_id = locations.id) " +
                                     "WHERE plugin_id=? ", [plugin_id])
+
+    def add_value_with_label(self, value_id, label, device_id):
+        '''
+        This function inserts a value into the database with a predefined label.
+        @param value_id: the unique identifier of the value. 
+        @param label: the predfined label of the value.
+        @param device_id: the id of the device.
+        '''
+        return self.dbpool.runQuery("INSERT into current_values (name, label, device_id) VALUES (?, ?, ?)", (value_id, label, device_id))
+      
+    def del_value_by_name_and_device_id(self, name, device_id):
+        '''
+        This function deletes a value by name and device_id.
+        @param name: the name of the value
+        @param device_id: the device_id
+        '''
+        return self.dbpool.runQuery("DELETE from current_values WHERE name=? and device_id=?", (name, device_id))  
+
+    def del_value(self, id):
+        '''
+        This function deletes a value by id.
+        @param id: the value id
+        '''
+        return self.dbpool.runQuery("DELETE from current_values WHERE id=?", [id])  
 
     @inlineCallbacks
     def update_or_add_value(self, name, value, pluginid, address, time=None):
@@ -430,10 +472,10 @@ class Database():
         @param location: the name of the location associated with the device
         '''
         if action == "create":
-            parms = yield self.dbpool.runQuery("SELECT plugins.authcode, devices.address, devices.name, locations.name FROM devices, plugins, locations WHERE devices.plugin_id = plugins.id AND devices.location_id = locations.id ORDER BY devices.id DESC LIMIT 1")
+            parms = yield self.dbpool.runQuery("SELECT plugins.authcode, devices.address, devices.name, locations.name FROM devices LEFT JOIN plugins ON devices.plugin_id = plugins.id LEFT JOIN locations ON devices.location_id = locations.id ORDER BY devices.id DESC LIMIT 1")
             
         if action == "update":
-            parms = yield self.dbpool.runQuery("SELECT plugins.authcode, devices.address, devices.name, locations.name FROM devices, plugins, locations WHERE devices.plugin_id = plugins.id AND devices.location_id = locations.id AND devices.id=?", [id])
+            parms = yield self.dbpool.runQuery("SELECT plugins.authcode, devices.address, devices.name, locations.name FROM devices LEFT JOIN plugins ON devices.plugin_id = plugins.id LEFT JOIN locations ON devices.location_id = locations.id WHERE devices.id=?", [id])
 
         if action != "delete":
             plugin = parms[0][0]
@@ -466,13 +508,18 @@ class Database():
             return self.dbpool.runQuery("UPDATE devices SET name=?, address=?, plugin_id=?, location_id=? WHERE id=?", \
                                         (name, address, plugin_id, location_id, id)).addCallback(self.cb_device_crud, "update", id)
 
+    def save_value(self, label, history_type, history_period, control_type, id):
+        return self.dbpool.runQuery("UPDATE current_values SET label=?, history_type_id=?, history_period_id=?, control_type_id=? WHERE id=?", \
+                                    (label, history_type, history_period, control_type, id))     
+
     def del_device(self, id):
         
         def delete(result, id):
             self.dbpool.runQuery("DELETE FROM devices WHERE id=?", [id]).addCallback(self.cb_device_crud, "delete", id, result[0][0], result[0][1], result[0][2], result[0][3])
         
-        return self.dbpool.runQuery("SELECT plugins.authcode, devices.address, devices.name, locations.name FROM plugins, devices, locations " +
-                                    "WHERE devices.plugin_id = plugins.id AND devices.location_id = locations.id AND devices.id=?", [id]).addCallback(delete, id)
+        return self.dbpool.runQuery("SELECT plugins.authcode, devices.address, devices.name, locations.name " +
+                                    "FROM devices LEFT JOIN plugins ON devices.plugin_id = plugins.id LEFT JOIN locations ON devices.location_id = locations.id " +
+                                    "WHERE devices.id=?", [id]).addCallback(delete, id)
 
     def del_location(self, id):
         return self.dbpool.runQuery("DELETE FROM locations WHERE id=?", [id])
@@ -505,7 +552,7 @@ class Database():
     def query_values(self):
         return self.dbpool.runQuery("SELECT current_values.name, current_values.value, devices.name, " + 
                                "current_values.lastupdate, plugins.name, devices.address, locations.name, current_values.id" + 
-                               ", control_types.name, control_types.id, history_types.name, history_periods.name, plugins.id FROM current_values INNER " +
+                               ", control_types.name, control_types.id, history_types.name, history_periods.name, plugins.id, current_values.label FROM current_values INNER " +
                                "JOIN devices ON (current_values.device_id = devices.id) INNER JOIN plugins ON (devices.plugin_id = plugins.id) " + 
                                "LEFT OUTER JOIN locations ON (devices.location_id = locations.id) " + 
                                "LEFT OUTER JOIN control_types ON (current_values.control_type_id = control_types.id) " +
@@ -513,7 +560,7 @@ class Database():
                                "LEFT OUTER JOIN history_periods ON (current_values.history_period_id = history_periods.id)")
 
     def query_values_light(self):
-        return self.dbpool.runQuery("SELECT id, name, history_period_id, history_type_id FROM current_values;")
+        return self.dbpool.runQuery("SELECT id, IFNULL(label, name), history_period_id, history_type_id FROM current_values;")
 
     def query_devices(self):      
         return self.dbpool.runQuery("SELECT devices.id, devices.name, devices.address, plugins.name, locations.name from devices " +
@@ -574,12 +621,10 @@ class Database():
 
     # /history collector stuff
 
-    def query_controllable_devices(self):
-        return self.dbpool.runQuery("SELECT devices.name, devices.address, plugins.name, plugins.authcode, current_values.value, devices.id, control_types.name, current_values.id FROM current_values " +
-                                    "INNER JOIN devices ON (current_values.device_id = devices.id) " +
-                                    "INNER JOIN plugins ON (devices.plugin_id = plugins.id) " +
-                                    "INNER JOIN control_types ON (current_values.control_type_id = control_types.id) " +
-                                    "WHERE current_values.control_type_id != 0")
+    def query_controllable_values(self):
+        return self.dbpool.runQuery("SELECT current_values.id, devices.name, current_values.label, current_values.value, control_types.name FROM current_values" +
+                                    " INNER JOIN devices ON (current_values.device_id = devices.id) INNER JOIN control_types ON (current_values.control_type_id = control_types.id)" +
+                                    " WHERE current_values.control_type_id != 0")
     
     def query_action_types_by_device_id(self, device_id):
         return self.dbpool.runQuery("SELECT current_values.id, current_values.name, control_types.name FROM current_values " +
