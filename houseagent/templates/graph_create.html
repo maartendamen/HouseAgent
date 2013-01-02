@@ -3,6 +3,8 @@
 <%def name="head()">
 <script type="text/javascript" src="/js/jquery.selectboxes.js"></script>
 <script src="/js/jquery.flot.js" type="text/javascript"></script>
+<script src="/js/jquery.flot.tooltip.js" type="text/javascript"></script>
+<script src="/js/jquery.flot.selection.js" type="text/javascript"></script>
 <!--[if IE]>
 	<script language="javascript" type="text/javascript" src="/js/excanvas.pack.js"></script>
 <![endif]-->
@@ -20,73 +22,66 @@ $(document).ready(function()
 	function basic_data(d) {
 		var value_name = $("#historic_values option:selected").text().split(' - ')[1];
 		
-		switch(value_name)
-		{
-			case "Temperature":
-			  color = '#ff0000';
-			  break;
-			case "Humidity":
-		      color = '#157DEC';
-		      break;
-		    case "Light": case "Lux":
-		      color = '#FFF380';
-		      break;
-			default:
-			  color = "#CAEF90";
-		}
-		
-		var data1 = [ { label: value_name, data: d, color: color} ];
+		var data1 = [ { label: value_name, data: d, color: "#caef90"} ];
 		var options = {
 			xaxis: {
 				mode: "time",
 				tickLength: 0
 			},
 			grid: {
-				borderColor: "#ffffff"
+				borderColor: "#ffffff",
+				hoverable: true
+			},
+			tooltip: true,
+			tooltipOpts: {
+				content: "%x | %y",
+				xDateFormat: "%b %d %H:%M"
 			},
 			series: {
 				lines: {
 					show: true,
 					fill: true
 				}
-			}
+			},
+	        selection: {
+	        	mode: "xy"
+	        }
 		};
 		
-		$.plot($("#graph_latest"), data1, options );
+		var graph = $("#graph_latest");
+		
+		graph.bind("plotselected", function (event, ranges) {
+			$.plot(graph, data1, $.extend(true, {}, options, {
+		                    xaxis: { min: ranges.xaxis.from, max: ranges.xaxis.to },
+				            yaxis: { min: ranges.yaxis.from, max: ranges.yaxis.to }
+		          }));
+		});
+		
+		$.plot(graph, data1, options );
 	}
 	
 	function agg_data(d) {
 		var value_name = $("#historic_values option:selected").text().split(' - ')[1];
 		
-		switch(value_name)
-		{
-			case "Temperature":
-			  color = '#ff0000';
-			  break;
-			case "Humidity":
-		      color = '#157DEC';
-		      break;
-		    case "Light": case "Lux":
-		      color = '#FFF380';
-		      break;
-			default:
-			  color = "#CAEF90";
-		}
-		
 		var data1 = [
 			{label: "current", data: d[0], color: "#caef90"},
 			{label: "min", data: d[1], color: "#1111da"},
-			{label: "avg", data: d[2], color: "#da11da"},
-			{label: "max", data: d[3], color: "#da1111"}
+			{label: "max", data: d[3], color: "#da1111"},
+			{label: "avg", data: d[2], color: "#da11da"}
 		];
 		var options = {
 			xaxis: {
 				mode: "time",
-				tickSize: [30, "minute"],
 				tickLength: 0
 			},
 			grid: {
-				borderColor: "#ffffff"
+				borderColor: "#ffffff",
+				hoverable: true
+			},
+			tooltip: true,
+			tooltipOpts: {
+				content: "%s %x | %y",
+				xDateFormat: "%b %d %H:%M"
 			},
 			series: {
 				lines: {
@@ -96,10 +91,22 @@ $(document).ready(function()
 				points: {
 					show: true
 				}
-			}
+			},
+	        selection: {
+	        	mode: "xy"
+	        }
 		};
 		
-		$.plot($("#graph_day"), data1, options );
+		var graph = $("#graph_day");
+		
+		graph.bind("plotselected", function (event, ranges) {
+			$.plot(graph, data1, $.extend(true, {}, options, {
+		                    xaxis: { min: ranges.xaxis.from, max: ranges.xaxis.to },
+				            yaxis: { min: ranges.yaxis.from, max: ranges.yaxis.to }
+		          }));
+		});
+		
+		$.plot(graph, data1, options );
 	}
 
 	$('#create_button').click(function() {
